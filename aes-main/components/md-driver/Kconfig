@@ -1,0 +1,22 @@
+menu "InvenSense MotionDriver"
+
+    choice INV_GYRO
+        prompt "Gyroscope model"
+        default INV_GYRO_MPU9250
+        help
+            Select gyroscope model that you use.
+        config INV_GYRO_MPU6050
+            bool
+            prompt "MPU6050"
+        config INV_GYRO_MPU9150
+            bool
+            prompt "MPU9150"
+        config INV_GYRO_MPU6500
+            bool
+            prompt "MPU6500"
+        config INV_GYRO_MPU9250
+            bool
+            prompt "MPU9250"
+    endchoice
+
+endmenu
