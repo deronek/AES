@@ -39,7 +39,7 @@ static const char *TAG = "md-driver";
 
 // function definitions
 
-esp_err_t IRAM_ATTR esp_i2c_write(unsigned char slave_addr, unsigned char reg_addr, unsigned char length, unsigned char const *data)
+inline esp_err_t esp_i2c_write(unsigned char slave_addr, unsigned char reg_addr, unsigned char length, unsigned char const *data)
 {
     // create buffer with reg_addr before the rest of the data
     // TODO: can this be optimized? creating copy of the whole array is not that great
