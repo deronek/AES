@@ -28,6 +28,11 @@
 #define INV_XYZ_ACCEL   (0x08)
 #define INV_XYZ_COMPASS (0x01)
 
+#define INV_SELF_TEST_GYRO_PASS     (0x01)
+#define INV_SELF_TEST_ACCEL_PASS    (0x02)
+#define INV_SELF_TEST_COMPASS_PASS  (0x04)
+#define INV_SELF_TEST_ALL_PASS      (INV_SELF_TEST_GYRO_PASS | INV_SELF_TEST_ACCEL_PASS | INV_SELF_TEST_COMPASS_PASS)
+
 struct int_param_s {
 #if defined EMPL_TARGET_MSP430 || defined MOTION_DRIVER_TARGET_MSP430
     void (*cb)(void);

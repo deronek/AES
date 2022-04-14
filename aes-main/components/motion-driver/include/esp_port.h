@@ -33,6 +33,7 @@ static const char *TAG = "md-driver";
 
 #define log_e(fmt, ...) ESP_LOGE(TAG, fmt, ## __VA_ARGS__);
 #define log_i(fmt, ...) ESP_LOGI(TAG, fmt, ## __VA_ARGS__);
+#define log_v(fmt, ...) ESP_LOGV(TAG, fmt, ## __VA_ARGS__);
 
 #define __no_operation()  __asm__ __volatile__ ("nop");
 
@@ -64,7 +65,7 @@ inline void esp_delay_ms(unsigned long num_ms)
 
 inline void esp_get_ms(unsigned long *count)
 {
-    *count = xthal_get_ccount();
+    *count = xTaskGetTickCount();
 }
 
 inline void esp_reg_int_cb(struct int_param_s *int_param)

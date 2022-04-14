@@ -1269,6 +1269,7 @@ int dmp_read_fifo(short *gyro, short *accel, long *quat,
 {
     unsigned char fifo_data[MAX_PACKET_LENGTH];
     unsigned char ii = 0;
+    unsigned char retval;
 
     /* TODO: sensors[0] only changes when dmp_enable_feature is called. We can
      * cache this value and save some cycles.
@@ -1276,8 +1277,12 @@ int dmp_read_fifo(short *gyro, short *accel, long *quat,
     sensors[0] = 0;
 
     /* Get a packet. */
-    if (mpu_read_fifo_stream(dmp.packet_length, fifo_data, more))
-        return -1;
+    retval = mpu_read_fifo_stream(dmp.packet_length, fifo_data, more);
+    if (retval)
+    {
+        log_v("Reading FIFO stream failed");
+        return retval;
+    }
 
     /* Parse DMP packet. */
     if (dmp.feature_mask & (DMP_FEATURE_LP_QUAT | DMP_FEATURE_6X_LP_QUAT)) {
@@ -1339,7 +1344,10 @@ int dmp_read_fifo(short *gyro, short *accel, long *quat,
      * the gesture callbacks (if registered).
      */
     if (dmp.feature_mask & (DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT))
+    {
+        log_v("Decoding gesture");
         decode_gesture(fifo_data + ii);
+    }
 
     get_ms(timestamp);
     return 0;
