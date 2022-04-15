@@ -9,40 +9,25 @@
 #include "inv_mpu.h"
 #include "inv_mpu_dmp_motion_driver.h"
 #include "mpu9255.h"
+#include "app_manager.h"
 
 static const char *TAG = "main";
 
+#define APP_MANAGER_INIT_STACK_DEPTH 4096
+#define APP_MANAGER_INIT_PRIORITY 20
 
 void app_main(void)
 {
-    i2c_master_init();
-    mpu9255_init();
-    // mpu_reset_fifo();
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    BaseType_t retval;
-    TaskHandle_t handle;
-    retval = xTaskCreate(
-        mpu9255_task_measure,
-        "mpu9255_task_measure",
-        2048, // TODO: change stack
-        NULL,
-        2,
-        &handle
-    );
-
-    if(retval != pdPASS)
-    {
-        ESP_LOGE(TAG, "Task creation unsuccessful");
-        abort();
-    }
-
-
-    // long accel_bias[3];
-    // ESP_ERROR_CHECK(mpu_read_6500_accel_bias(accel_bias));
-    // printf("Accel bias: %lx %lx %lx\n", accel_bias[0], accel_bias[1], accel_bias[2]);
-
-    // long gyro_bias[3];
-    // ESP_ERROR_CHECK(mpu_read_6500_gyro_bias(gyro_bias));
-    // printf("Gyro bias: %lx %lx %lx\n", gyro_bias[0], gyro_bias[1], gyro_bias[2]);
+    /*
+        Increase priority so we initialize everything
+        without other tasks taking the CPU time.
+        This task will exit on its own after initialization.
+    */
+    task_utils_create_task(app_manager_init,
+                           "app_manager_init",
+                           APP_MANAGER_INIT_STACK_DEPTH,
+                           NULL,
+                           APP_MANAGER_INIT_PRIORITY,
+                           NULL,
+                           0);
 }

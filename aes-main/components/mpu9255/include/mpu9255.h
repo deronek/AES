@@ -33,6 +33,6 @@ extern unsigned long timestamp;
 // function declarations
 
 esp_err_t mpu9255_init();
-void mpu9255_task_measure();
+TASK mpu9255_task_measure();
 
 #endif

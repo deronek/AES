@@ -13,6 +13,11 @@
 #include "freertos/task.h"
 #include "soc/rtc.h"
 
+#include "task_utils.h"
+#include "tasks.h"
+#include "i2c.h"
+#include "mpu9255.h"
+
 // constants
 
 // enums
@@ -28,13 +33,13 @@ typedef enum app_manager_state_type_tag
 
 // structs
 
-
 // global variables
 
 extern app_manager_state_type app_manager_state;
 
 // function declarations
 
-void app_manager_main();
+void app_manager_init();
+TASK app_manager_main();
 
 #endif

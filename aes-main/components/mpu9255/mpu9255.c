@@ -12,8 +12,8 @@ static const char *TAG = "mpu9255";
 static const unsigned char SENSORS = INV_XYZ_GYRO | INV_XYZ_ACCEL;
 
 // constants
-#define DEFAULT_MPU_HZ          10
-#define MPU9255_TASK_TICK_FREQ  (1.0f / DEFAULT_MPU_HZ) * configTICK_RATE_HZ
+#define DEFAULT_MPU_HZ 10
+#define TASK_TICK_PERIOD TASK_HZ_TO_TICKS(DEFAULT_MPU_HZ)
 
 // function declarations
 
@@ -23,7 +23,6 @@ static void tap_cb(unsigned char, unsigned char);
 
 static void tap_cb(unsigned char a, unsigned char b)
 {
-    
 }
 
 esp_err_t mpu9255_init()
@@ -99,31 +98,34 @@ esp_err_t mpu9255_init()
         abort();
     }
 
-    ESP_LOGV(TAG, "Task tick is %f btw", MPU9255_TASK_TICK_FREQ);
-
     return ESP_OK;
 }
 
-void mpu9255_task_measure()
+TASK mpu9255_task_measure()
 {
     short sensors;
     unsigned char more;
-    unsigned char retval;
+    int retval;
     TickType_t last_wake_time;
 
     last_wake_time = xTaskGetTickCount();
-    for(;;)
+    for (;;)
     {
         retval = dmp_read_fifo(gyro_raw, accel_raw, quat, &timestamp, &sensors, &more);
         if (retval == -2)
         {
             ESP_LOGW(TAG, "FIFO overflowed, measurement skipped");
         }
-        else 
+        else
         {
             ESP_LOGV(TAG, "Read FIFO data from MPU9255. Timestamp: %lu, bytes left in FIFO: %hhu", timestamp, more);
         }
 
-        sleep_or_warning(&last_wake_time, MPU9255_TASK_TICK_FREQ, TAG);
+        task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     }
+
+    vTaskDelete(NULL);
+
+    // should never reach there
+    abort();
 }
