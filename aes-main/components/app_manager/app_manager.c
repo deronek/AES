@@ -28,7 +28,7 @@ inline static void log_abort_wrong_state(const char *state)
     abort();
 }
 
-void app_manager_init()
+TASK app_manager_init()
 {
     app_manager_state = APP_MANAGER_INIT;
 

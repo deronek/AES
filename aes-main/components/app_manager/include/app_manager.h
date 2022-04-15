@@ -39,7 +39,7 @@ extern app_manager_state_type app_manager_state;
 
 // function declarations
 
-void app_manager_init();
+TASK app_manager_init();
 TASK app_manager_main();
 
 #endif
