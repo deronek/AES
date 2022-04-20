@@ -14,9 +14,10 @@
 #include "soc/rtc.h"
 
 #include "task_utils.h"
-#include "tasks.h"
 #include "i2c.h"
 #include "mpu9255.h"
+#include "algo.h"
+#include "hc_sr04.h"
 
 // constants
 
@@ -34,6 +35,10 @@ typedef enum app_manager_state_type_tag
 // structs
 
 // global variables
+extern TaskHandle_t app_manager_algo_task_handle,
+    app_manager_mpu9255_task_handle,
+    app_manager_main_task_handle,
+    app_manager_hc_sr04_task_handle;
 
 extern app_manager_state_type app_manager_state;
 

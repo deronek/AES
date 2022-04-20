@@ -1,7 +1,7 @@
 #include "app_manager.h"
 
 // constants
-#define TASK_TICK_PERIOD pdMS_TO_TICKS(10)
+#define TASK_TICK_PERIOD pdMS_TO_TICKS(100)
 
 // global variables
 app_manager_state_type app_manager_state;
@@ -9,16 +9,18 @@ app_manager_state_type app_manager_state;
 // local variables
 static const char *TAG = "app_manager";
 
-/**
- * @brief Task handles used in the app manager.
- */
-static TaskHandle_t task_handles[TASK_NUMBER];
+TaskHandle_t app_manager_algo_task_handle,
+    app_manager_mpu9255_task_handle,
+    app_manager_main_task_handle,
+    app_manager_hc_sr04_task_handle;
 
 // function declarations
 static void app_manager_run();
 static void app_manager_update_state();
 static void app_manager_init_peripherals();
-static void app_manager_create_tasks();
+static void app_manager_create_sensor_tasks();
+static void app_manager_create_main_task();
+static void app_manager_create_algo_task();
 inline static void log_abort_wrong_state(const char *state);
 
 // function definitions
@@ -32,39 +34,78 @@ TASK app_manager_init()
 {
     app_manager_state = APP_MANAGER_INIT;
 
+    ESP_LOGI(TAG, "Core ID: %d", xPortGetCoreID());
     app_manager_init_peripherals();
-    app_manager_create_tasks();
+    app_manager_create_sensor_tasks();
+    app_manager_create_main_task();
+    app_manager_create_algo_task();
 
     // estabilish communication with user here
-
     app_manager_state = APP_MANAGER_READY;
 
-    ESP_LOGI(TAG, "App manager initialization successful");
+    // ESP_LOGI(TAG, "App manager initialization successful");
     vTaskDelete(NULL);
     abort();
 }
 
 void app_manager_init_peripherals()
 {
-    i2c_master_init();
-    mpu9255_init();
+    // i2c_master_init();
+    // mpu9255_init();
+    hc_sr04_init();
 }
 
-void app_manager_create_tasks()
+void app_manager_create_sensor_tasks()
 {
     // TODO: implement some scalable interface for creating tasks
-    for (uint8_t i = 0; i < TASK_NUMBER; ++i)
-    {
-        ESP_LOGI(TAG, "Priority is still %d", uxTaskPriorityGet(NULL));
-        task_utils_create_task(
-            tasks[i],
-            task_names[i],
-            task_stack_sizes[i],
-            NULL,
-            task_priorities[i],
-            &(task_handles[i]),
-            task_core_ids[i]);
-    }
+    /**
+     * @brief MPU9255 sensor task
+     */
+    /*
+    task_utils_create_task(
+        mpu9255_task_measure,
+        "mpu9255_task_measure",
+        2048,
+        NULL,
+        4,
+        &app_manager_mpu9255_task_handle,
+        0);
+*/
+    /**
+     * @brief HC-SR04 sensors task
+     */
+    task_utils_create_task(
+        hc_sr04_measure,
+        "hc_sr04_measure",
+        2048,
+        NULL,
+        4,
+        &app_manager_hc_sr04_task_handle,
+        1);
+}
+
+void app_manager_create_main_task()
+{
+    task_utils_create_task(
+        app_manager_main,
+        "app_manager_main",
+        2048,
+        NULL,
+        2,
+        &app_manager_main_task_handle,
+        0);
+}
+
+void app_manager_create_algo_task()
+{
+    task_utils_create_task(
+        algo_main,
+        "algo_main",
+        2048,
+        NULL,
+        3,
+        &app_manager_algo_task_handle,
+        0);
 }
 
 TASK app_manager_main()
@@ -93,6 +134,8 @@ void app_manager_run()
         // probably nothing to do, wait for calibration end
         break;
     case APP_MANAGER_DRIVING:
+        algo_run();
+        ESP_LOGI(TAG, "Yaw: %.1f", algo_euler_angles.yaw * 180.0 / M_PI);
         /*
             - wait for all sensor data:
                 - ultrasonic sensor

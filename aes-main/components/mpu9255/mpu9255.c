@@ -1,11 +1,13 @@
 #include "mpu9255.h"
 
 // global variables
-short gyro_raw[3], accel_raw[3];
-long quat[4];
+QueueHandle_t mpu9255_queue_fifo_data;
 unsigned long timestamp;
 
 // local variables
+
+// sensor data, not exposed
+static mpu9255_fifo_data_type mpu9255_fifo_data;
 
 static const char *TAG = "mpu9255";
 
@@ -14,14 +16,20 @@ static const unsigned char SENSORS = INV_XYZ_GYRO | INV_XYZ_ACCEL;
 // constants
 #define DEFAULT_MPU_HZ 10
 #define TASK_TICK_PERIOD TASK_HZ_TO_TICKS(DEFAULT_MPU_HZ)
+#define CALIBRATION_DATA_POINTS 10
 
 // function declarations
 
 static void tap_cb(unsigned char, unsigned char);
+static void mpu9255_calibrate();
 
 // function definitions
 
 static void tap_cb(unsigned char a, unsigned char b)
+{
+}
+
+void mpu9255_calibrate()
 {
 }
 
@@ -98,6 +106,20 @@ esp_err_t mpu9255_init()
         abort();
     }
 
+    /*
+        // create semaphore used as a data ready signal
+        mpu9255_semaphore_fifo_data_ready = xSemaphoreCreateBinary();
+        if (mpu9255_semaphore_fifo_data_ready == NULL)
+        {
+            abort();
+        }
+    */
+    // create queue
+    if ((mpu9255_queue_fifo_data = xQueueCreate(1, sizeof(mpu9255_fifo_data_type))) == NULL)
+    {
+        abort();
+    }
+
     return ESP_OK;
 }
 
@@ -111,7 +133,11 @@ TASK mpu9255_task_measure()
     last_wake_time = xTaskGetTickCount();
     for (;;)
     {
-        retval = dmp_read_fifo(gyro_raw, accel_raw, quat, &timestamp, &sensors, &more);
+        retval = dmp_read_fifo(
+            mpu9255_fifo_data.gyro_raw.array,
+            mpu9255_fifo_data.accel_raw.array,
+            mpu9255_fifo_data.quaternion.array,
+            &timestamp, &sensors, &more);
         if (retval == -2)
         {
             ESP_LOGW(TAG, "FIFO overflowed, measurement skipped");
@@ -120,7 +146,15 @@ TASK mpu9255_task_measure()
         {
             ESP_LOGV(TAG, "Read FIFO data from MPU9255. Timestamp: %lu, bytes left in FIFO: %hhu", timestamp, more);
         }
-
+        /*
+                // data is ready, take semaphore
+                if (xSemaphoreTake(mpu9255_semaphore_fifo_data_ready, 0) != pdTRUE)
+                {
+                    ESP_LOGW(TAG, "Data was not read");
+                }
+        */
+        xQueueOverwrite(mpu9255_queue_fifo_data, &mpu9255_fifo_data);
+        xTaskNotifyGive(app_manager_algo_task_handle);
         task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     }
 

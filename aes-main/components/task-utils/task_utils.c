@@ -30,9 +30,16 @@ void task_utils_create_task(TaskFunction_t task,
         ESP_LOGE(TAG, "Task %s creation unsuccessful", task_name);
         abort();
     }
-    else
-    {
-        ESP_LOGI(TAG, "Task %s created successfully, stack depth %hu, priority %u",
-                 task_name, stack_depth, priority);
-    }
+
+    /**
+     * @todo If we log anything during initialization (or block initialization task
+     * in any way, like queue poll), initialization task actually gives CPU time
+     * to the application tasks.
+     *
+     * Either minimize logging and blocking in initialization task, or make 100 % sure that
+     * giving application tasks CPU time during initialization won't result in
+     * undefined behaviour.
+     */
+    // ESP_LOGI(TAG, "Task %s created successfully, stack depth %hu, priority %u, core %d",
+    //          task_name, stack_depth, priority, core_id);
 }
