@@ -12,12 +12,6 @@
 #include "task_utils.h"
 
 // constants
-typedef struct ble_data_type_tag {
-     uint8_t id;
-     uint8_t len;
-     void *data;
-     uint8_t checksum
-} ble_data_type;
 
 // enums
 
@@ -27,6 +21,6 @@ typedef struct ble_data_type_tag {
 
 // function declarations
 void ble_init();
-esp_err_t ble_send_data(uint8_t id, uint8_t len, void *data);
+TASK ble_main();
 
 #endif
