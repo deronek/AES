@@ -32,6 +32,12 @@ typedef enum app_manager_state_type_tag
     APP_MANAGER_FAIL
 } app_manager_state_type;
 
+typedef enum app_manager_task_id_type_tag
+{
+    TASK_ID_HC_SR04 = 0,
+    TASK_ID_MPU9255 = 1
+} app_manager_task_id_type;
+
 // structs
 
 // global variables
@@ -41,6 +47,8 @@ extern TaskHandle_t app_manager_algo_task_handle,
     app_manager_hc_sr04_task_handle;
 
 extern app_manager_state_type app_manager_state;
+
+extern const uint8_t app_manager_task_data_size[];
 
 // function declarations
 

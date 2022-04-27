@@ -6,6 +6,11 @@
 // global variables
 app_manager_state_type app_manager_state;
 
+const uint8_t app_manager_task_data_size[] = {
+    sizeof(hc_sr04_data_type),
+    sizeof(mpu9255_fifo_data_type)
+};
+
 // local variables
 static const char *TAG = "app_manager";
 
@@ -13,6 +18,8 @@ TaskHandle_t app_manager_algo_task_handle,
     app_manager_mpu9255_task_handle,
     app_manager_main_task_handle,
     app_manager_hc_sr04_task_handle;
+
+
 
 // function declarations
 static void app_manager_run();
