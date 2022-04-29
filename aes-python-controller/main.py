@@ -1,43 +1,68 @@
-import asyncio
-import time
+import pygame
 
-from bleak import BleakClient
+pygame.font.init()
+pygame.mixer.init()
+import pygame_widgets
 
+from buttons import draw_buttons, init_buttons
+from constants import BLACK
 
-address = "E8:31:CD:C4:76:62"
-MODEL_NBR_UUID = "0000abf2-0000-1000-8000-00805f9b34fb"
+from app_manager import draw_app_manager
 
-################################ read MAC adress##############################################
-# async def main():
-#     devices = await BleakScanner.discover()
-#     for d in devices:
-#         print(d)
-#
-# asyncio.run(main())
+from timestamp import draw_timestamp
 
-def callback(sender: int, data: bytearray):
-    print(f"{sender}: {data}")
+import math
 
+from heading import draw_heading
 
-async def main(address):
-    async with BleakClient(address) as client:
-        while True:
-            await client.start_notify(MODEL_NBR_UUID, callback)
+import os
 
+from connection_status import draw_connection_status
+from radar import draw_radar
 
-asyncio.run(main(address))
+WIDTH, HEIGHT = 1920, 1080
+WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("AES Controller")
 
+BORDER = pygame.Rect(WIDTH // 2 - 5, 0, 10, HEIGHT)
 
-
-
+# BULLET_HIT_SOUND = pygame.mixer.Sound('Assets/Grenade+1.mp3')
+# BULLET_FIRE_SOUND = pygame.mixer.Sound('Assets/Gun+Silencer.mp3')
 
 
-################################################ read UUID adres ##################################
-# async def main(address: str):
-#     async with BleakClient(address) as client:
-#         svcs = await client.get_services()
-#         print("Services:")
-#         for service in svcs:
-#             print(service)
-#
-# asyncio.run(main(address))
+FPS = 30
+
+
+def draw_window(events):
+    # WIN.fill(BLACK)
+    WIN.blit(draw_radar(), (37, 137))
+    WIN.blit(draw_connection_status(), (35, 20))
+    WIN.blit(draw_heading(), (200, 800))
+    WIN.blit(draw_timestamp(), (1170, 50))
+    WIN.blit(draw_app_manager(), (1300, 200))
+    WIN.blit(draw_buttons(), (1500, 750))
+
+    # pygame_widgets.update(events)
+    pygame.display.update()
+
+
+def main():
+    clock = pygame.time.Clock()
+    run = True
+    init_buttons()
+    while run:
+        clock.tick(FPS)
+        events = pygame.event.get()
+        for event in events:
+            match event.type:
+                case pygame.QUIT:
+                    run = False
+                    pygame.quit()
+
+        draw_window(events)
+
+    quit()
+
+
+if __name__ == "__main__":
+    main()
