@@ -18,8 +18,11 @@
 #include "mpu9255.h"
 #include "algo.h"
 #include "hc_sr04.h"
+#include "ble.h"
 
 // constants
+#define algo_task_notify(flag) xTaskNotify(app_manager_algo_task_handle, flag, eSetBits)
+#define ble_task_notify(flag) xTaskNotify(app_manager_ble_task_handle, flag, eSetBits)
 
 // enums
 typedef enum app_manager_state_type_tag
@@ -32,11 +35,20 @@ typedef enum app_manager_state_type_tag
     APP_MANAGER_FAIL
 } app_manager_state_type;
 
+/**
+ * @brief Task ID used for BLE frame distinction
+ */
 typedef enum app_manager_task_id_type_tag
 {
     TASK_ID_HC_SR04 = 0,
     TASK_ID_MPU9255 = 1
 } app_manager_task_id_type;
+
+typedef enum app_manager_task_flag_type_tag
+{
+    TASK_FLAG_HC_SR04 = (1 << TASK_ID_HC_SR04),
+    TASK_FLAG_MPU9255 = (1 << TASK_ID_MPU9255)
+} app_manager_task_flag_type;
 
 // structs
 
@@ -44,7 +56,8 @@ typedef enum app_manager_task_id_type_tag
 extern TaskHandle_t app_manager_algo_task_handle,
     app_manager_mpu9255_task_handle,
     app_manager_main_task_handle,
-    app_manager_hc_sr04_task_handle;
+    app_manager_hc_sr04_task_handle,
+    app_manager_ble_task_handle;
 
 extern app_manager_state_type app_manager_state;
 

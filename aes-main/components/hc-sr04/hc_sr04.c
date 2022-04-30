@@ -166,14 +166,15 @@ TASK hc_sr04_measure()
 
             hc_sr04_data.time[i] = item->duration0;
 
-            ESP_LOGI(TAG, "Sensor %d: level0 %d, duration0 %d, level1 %d, duration1 %d",
-                     i, item->level0, item->duration0, item->level1, item->duration1);
+            // ESP_LOGI(TAG, "Sensor %d: level0 %d, duration0 %d, level1 %d, duration1 %d",
+            //          i, item->level0, item->duration0, item->level1, item->duration1);
 
             vRingbufferReturnItem(rb[i], (void *)item);
             vTaskDelay(MEASUREMENT_DELAY_TIME);
         }
         // ESP_LOGI(TAG, "Sending data to queue");
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);
-        xTaskNotifyGive(app_manager_algo_task_handle);
+        algo_task_notify(TASK_FLAG_HC_SR04);
+        ble_task_notify(TASK_FLAG_HC_SR04);
     }
 }

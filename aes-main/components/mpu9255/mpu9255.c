@@ -154,7 +154,8 @@ TASK mpu9255_task_measure()
                 }
         */
         xQueueOverwrite(mpu9255_queue_fifo_data, &mpu9255_fifo_data);
-        xTaskNotifyGive(app_manager_algo_task_handle);
+        algo_task_notify(TASK_FLAG_MPU9255);
+        ble_task_notify(TASK_FLAG_MPU9255);
         task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     }
 
