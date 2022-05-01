@@ -1,6 +1,7 @@
 #include "ble.h"
 
 // global variables
+bool ble_running = false;
 
 // local variables
 
@@ -17,10 +18,14 @@ static esp_err_t ble_send_data(uint8_t *data, uint8_t len);
 
 void ble_init()
 {
+    /**
+     * @todo Initialize ble
+     */
 }
 
 TASK ble_main()
 {
+    ble_running = true;
     for (;;)
     {
         /**
@@ -164,4 +169,8 @@ esp_err_t ble_send_data(uint8_t *packet, uint8_t packet_length)
     // ESP_LOGI(TAG, "%u %u", dist1, dist2);
     //  esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], packet_length, packet, false); // change sizes[i] and string[i]
     return ESP_OK;
+}
+
+void ble_task_notify(app_manager_task_flag_type task_flag)
+{
 }

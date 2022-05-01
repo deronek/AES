@@ -21,8 +21,6 @@
 #include "ble.h"
 
 // constants
-#define algo_task_notify(flag) xTaskNotify(app_manager_algo_task_handle, flag, eSetBits)
-#define ble_task_notify(flag) xTaskNotify(app_manager_ble_task_handle, flag, eSetBits)
 
 // enums
 typedef enum app_manager_state_type_tag
@@ -67,5 +65,7 @@ extern const uint8_t app_manager_task_data_size[];
 
 TASK app_manager_init();
 TASK app_manager_main();
+void app_manager_algo_task_notify(app_manager_task_flag_type task_flag);
+void app_manager_ble_task_notify(app_manager_task_flag_type task_flag);
 
 #endif

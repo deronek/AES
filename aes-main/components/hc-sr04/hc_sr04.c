@@ -195,7 +195,7 @@ TASK hc_sr04_measure()
         // ESP_LOGI(TAG, "Sending data to queue");
         ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);
-        algo_task_notify(TASK_FLAG_HC_SR04);
-        ble_task_notify(TASK_FLAG_HC_SR04);
+        app_manager_algo_task_notify(TASK_FLAG_HC_SR04);
+        app_manager_ble_task_notify(TASK_FLAG_HC_SR04);
     }
 }

@@ -215,8 +215,8 @@ TASK mpu9255_task_measure()
         // }
 
         xQueueOverwrite(mpu9255_queue_fifo_data, &mpu9255_fifo_data);
-        algo_task_notify(TASK_FLAG_MPU9255);
-        ble_task_notify(TASK_FLAG_MPU9255);
+        app_manager_algo_task_notify(TASK_FLAG_MPU9255);
+        app_manager_ble_task_notify(TASK_FLAG_MPU9255);
 
         /**
          * @todo Implement DMP interrupt - we can be notified when the

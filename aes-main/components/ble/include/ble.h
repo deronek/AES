@@ -14,10 +14,12 @@
 
 #include "task_utils.h"
 
+#include "app_manager.h"
 #include "mpu9255.h"
 #include "hc_sr04.h"
 
 // constants
+extern bool ble_running;
 
 // enums
 

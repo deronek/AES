@@ -4,6 +4,7 @@
 // global variables
 algo_quaternion_type algo_quaternion;
 algo_euler_angles_type algo_euler_angles;
+bool algo_running = false;
 
 // local variables
 static const char *TAG = "algo";
@@ -18,7 +19,12 @@ static const char *TAG = "algo";
 void algo_update_quaternion();
 
 // function definitions
-
+void algo_init()
+{
+    /**
+     * @todo Initialize all algo data structures
+     */
+}
 void algo_update_quaternion()
 {
     algo_quaternion.w = (float)algo_mpu9255_fifo_data.quaternion.w / QUATERNION_SCALE_FACTOR;
@@ -29,6 +35,7 @@ void algo_update_quaternion()
 
 TASK algo_main()
 {
+    algo_running = true;
     // get start time of this iteration
     TickType_t last_wake_time = xTaskGetTickCount();
     for (;;)

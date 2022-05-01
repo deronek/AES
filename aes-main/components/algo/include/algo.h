@@ -8,6 +8,7 @@
 
 #include <math.h>
 
+#include "app_manager.h"
 #include "mpu9255.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -36,8 +37,10 @@ typedef struct algo_euler_angles_type_tag
 // global variables
 extern algo_quaternion_type algo_quaternion;
 extern algo_euler_angles_type algo_euler_angles;
+extern bool algo_running;
 
 // function declarations
+void algo_init();
 TASK algo_main();
 void algo_run();
 

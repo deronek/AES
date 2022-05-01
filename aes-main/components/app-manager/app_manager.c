@@ -27,13 +27,16 @@ static void app_manager_create_ble_task();
 static void app_manager_create_sensor_tasks();
 static void app_manager_create_main_task();
 static void app_manager_create_algo_task();
-inline static void log_abort_wrong_state(const char *state);
 
 // function definitions
 inline static void log_abort_wrong_state(const char *state)
 {
     ESP_LOGE(TAG, "app_manager_state == %s in main loop", state);
     abort();
+}
+inline static void app_manager_task_notify(xTaskHandle task_handle, app_manager_task_flag_type task_flag)
+{
+    xTaskNotify(task_handle, task_flag, eSetBits);
 }
 
 TASK app_manager_init()
@@ -45,7 +48,6 @@ TASK app_manager_init()
     app_manager_create_ble_task();
     app_manager_create_sensor_tasks();
     app_manager_create_main_task();
-    app_manager_create_algo_task();
 
     // estabilish communication with user here
     app_manager_state = APP_MANAGER_READY;
@@ -140,13 +142,16 @@ TASK app_manager_main()
     //     // vTaskDelay(pdMS_TO_TICKS(5000));
     //     task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     // }
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    vTaskDelay(pdMS_TO_TICKS(5000));
 
     // set priority to high
     UBaseType_t old_priority = uxTaskPriorityGet(NULL);
     vTaskPrioritySet(NULL, 10);
 
     mpu9255_calibrate();
+    algo_init();
+    app_manager_create_algo_task();
+    app_manager_state = APP_MANAGER_DRIVING;
 
     // set priority back to low
     vTaskPrioritySet(NULL, 2);
@@ -221,5 +226,21 @@ void app_manager_update_state()
     case APP_MANAGER_FAIL:
         // stay in this state, or go back to APP_MANAGER_READY if user requests
         break;
+    }
+}
+
+void app_manager_algo_task_notify(app_manager_task_flag_type task_flag)
+{
+    if (algo_running)
+    {
+        app_manager_task_notify(app_manager_algo_task_handle, task_flag);
+    }
+}
+
+void app_manager_ble_task_notify(app_manager_task_flag_type task_flag)
+{
+    if (ble_running)
+    {
+        app_manager_task_notify(app_manager_ble_task_handle, task_flag);
     }
 }
