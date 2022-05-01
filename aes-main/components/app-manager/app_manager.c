@@ -4,7 +4,7 @@
 #define TASK_TICK_PERIOD pdMS_TO_TICKS(100)
 
 // global variables
-app_manager_state_type app_manager_state;
+app_manager_state_type app_manager_state = APP_MANAGER_INIT;
 
 const uint8_t app_manager_task_data_size[] = {
     sizeof(hc_sr04_data_type),
@@ -41,7 +41,8 @@ inline static void app_manager_task_notify(xTaskHandle task_handle, app_manager_
 
 TASK app_manager_init()
 {
-    app_manager_state = APP_MANAGER_INIT;
+    // ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_LEVELMASK));
+    ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
     ESP_LOGI(TAG, "Core ID: %d", xPortGetCoreID());
     app_manager_init_peripherals();

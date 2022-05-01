@@ -20,16 +20,23 @@ static const unsigned char SENSORS = INV_XYZ_GYRO | INV_XYZ_ACCEL;
 #define DEFAULT_MPU_HZ 10
 #define TASK_TICK_PERIOD TASK_HZ_TO_TICKS(DEFAULT_MPU_HZ)
 
+/**
+ * @brief Maximum number of ticks to wait for the next FIFO data.
+ * If this will be exceeded, a warning will be logged.
+ */
+#define TASK_MAXIMUM_TICK_PERIOD TASK_TICK_PERIOD + 2
+
 #define CALIBRATION_DATA_POINTS_EXP 4
 #define CALIBRATION_DATA_POINTS (1 << CALIBRATION_DATA_POINTS_EXP)
 
 // function declarations
 
 static void tap_cb(unsigned char, unsigned char);
+static void mpu9255_init_int_pin();
 
 // function definitions
 
-static void tap_cb(unsigned char a, unsigned char b)
+void tap_cb(unsigned char a, unsigned char b)
 {
 }
 
@@ -181,6 +188,9 @@ esp_err_t mpu9255_init()
         abort();
     }
 
+    mpu9255_init_int_pin();
+    dmp_set_interrupt_mode(DMP_INT_CONTINUOUS);
+
     return ESP_OK;
 }
 
@@ -194,6 +204,12 @@ TASK mpu9255_task_measure()
     last_wake_time = xTaskGetTickCount();
     for (;;)
     {
+        uint32_t notification_value = ulTaskNotifyTake(pdTRUE, TASK_MAXIMUM_TICK_PERIOD);
+        if (!notification_value)
+        {
+            ESP_LOGW(TAG, "Maximum tick period exceeded");
+            continue;
+        }
         retval = dmp_read_fifo(
             mpu9255_fifo_data.gyro.array,
             mpu9255_fifo_data.accel.array,
@@ -223,11 +239,26 @@ TASK mpu9255_task_measure()
          * new FIFO data is ready.
          * Use dmp_set_interrupt_mode(DMP_INT_CONTINUOUS) and INT pin.
          */
-        task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
+        // task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     }
 
     vTaskDelete(NULL);
 
     // should never reach there
     abort();
+}
+
+static void IRAM_ATTR mpu9255_isr(void *arg)
+{
+    BaseType_t higher_priority_task_woken = pdFALSE;
+    vTaskNotifyGiveFromISR(app_manager_mpu9255_task_handle, &higher_priority_task_woken);
+    portYIELD_FROM_ISR(higher_priority_task_woken);
+}
+
+void mpu9255_init_int_pin()
+{
+    gpio_reset_pin(MPU9255_INT_PIN);
+    gpio_set_direction(MPU9255_INT_PIN, GPIO_MODE_INPUT);
+    gpio_set_intr_type(MPU9255_INT_PIN, GPIO_INTR_POSEDGE);
+    gpio_isr_handler_add(MPU9255_INT_PIN, mpu9255_isr, (void *)MPU9255_INT_PIN);
 }

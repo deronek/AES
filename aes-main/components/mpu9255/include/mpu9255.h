@@ -16,6 +16,7 @@
 
 // constants
 #define MPU9255_AXIS_NUMBER 3
+#define MPU9255_INT_PIN GPIO_NUM_19
 
 // enums
 
