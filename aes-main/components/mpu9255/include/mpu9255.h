@@ -15,29 +15,24 @@
 #include "app_manager.h"
 
 // constants
+#define MPU9255_AXIS_NUMBER 3
 
 // enums
 
 // structs
+typedef union mpu9255_sensor_data_type_tag
+{
+    struct
+    {
+        short x, y, z;
+    };
+    short array[MPU9255_AXIS_NUMBER];
+} mpu9255_sensor_data_type;
 
 typedef struct mpu9255_fifo_data_type_tag
 {
-    union
-    {
-        struct
-        {
-            short x, y, z;
-        };
-        short array[3];
-    } gyro_raw;
-    union
-    {
-        struct
-        {
-            short x, y, z;
-        };
-        short array[3];
-    } accel_raw;
+    mpu9255_sensor_data_type gyro;
+    mpu9255_sensor_data_type accel;
     union
     {
         struct
@@ -56,6 +51,7 @@ extern unsigned long timestamp;
 // function declarations
 
 esp_err_t mpu9255_init();
+void mpu9255_calibrate();
 TASK mpu9255_task_measure();
 
 #endif

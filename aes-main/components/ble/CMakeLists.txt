@@ -1,3 +1,4 @@
 idf_component_register(SRCS "ble.c"
                     INCLUDE_DIRS "include"
-                    REQUIRES task-utils mpu9255 hc-sr04)
+                    REQUIRES hc-sr04 task-utils mpu9255)
+set_property(TARGET ${COMPONENT_LIB} APPEND PROPERTY LINK_INTERFACE_MULTIPLICITY 3)

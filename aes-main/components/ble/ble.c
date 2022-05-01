@@ -151,13 +151,17 @@ void ble_receive_data(uint8_t id, uint8_t *destination)
     default:
         abort();
     }
-    xQueuePeek(hc_sr04_queue_data, destination, 0);
+    xQueuePeek(queue, destination, 0);
 }
 
 esp_err_t ble_send_data(uint8_t *packet, uint8_t packet_length)
 {
     // ESP_LOGI(TAG, "Sending packet, id %hhx, timestamp %hhx %hhx %hhx %hhx, data size %hhx", packet[0],
     //          packet[1], packet[2], packet[3], packet[4], packet[5]);
+    // uint32_t dist1 = packet[9] | (packet[8] << 8) | (packet[7] << 16) | (packet[6] << 24);
+    // uint32_t dist2 = packet[10] | (packet[11] << 8) | (packet[12] << 16) | (packet[13] << 24);
+
+    // ESP_LOGI(TAG, "%u %u", dist1, dist2);
     //  esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], packet_length, packet, false); // change sizes[i] and string[i]
     return ESP_OK;
 }

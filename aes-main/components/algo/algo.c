@@ -18,15 +18,14 @@ static const char *TAG = "algo";
 void algo_update_quaternion();
 
 // function definitions
-/*
+
 void algo_update_quaternion()
 {
-    algo_quaternion.w = (float)mpu9255_fifo_data.quaternion.w / QUATERNION_SCALE_FACTOR;
-    algo_quaternion.x = (float)mpu9255_fifo_data.quaternion.x / QUATERNION_SCALE_FACTOR;
-    algo_quaternion.y = (float)mpu9255_fifo_data.quaternion.y / QUATERNION_SCALE_FACTOR;
-    algo_quaternion.z = (float)mpu9255_fifo_data.quaternion.z / QUATERNION_SCALE_FACTOR;
+    algo_quaternion.w = (float)algo_mpu9255_fifo_data.quaternion.w / QUATERNION_SCALE_FACTOR;
+    algo_quaternion.x = (float)algo_mpu9255_fifo_data.quaternion.x / QUATERNION_SCALE_FACTOR;
+    algo_quaternion.y = (float)algo_mpu9255_fifo_data.quaternion.y / QUATERNION_SCALE_FACTOR;
+    algo_quaternion.z = (float)algo_mpu9255_fifo_data.quaternion.z / QUATERNION_SCALE_FACTOR;
 }
-*/
 
 TASK algo_main()
 {
@@ -58,21 +57,13 @@ TASK algo_main()
 
 void algo_run()
 {
-    /*
-        ESP_LOGI(TAG, "Gyro data: %hi %hi %hi",
-                 algo_mpu9255_fifo_data.gyro_raw.x,
-                 algo_mpu9255_fifo_data.gyro_raw.y,
-                 algo_mpu9255_fifo_data.gyro_raw.z);
-                 */
-    // ESP_LOGI(TAG, "Sensor0: %llu, Sensor1: %llu", algo_hc_sr04_data.time[0],
-    //          algo_hc_sr04_data.time[1]);
-    /*
     algo_update_quaternion();
     // yaw
     float siny_cosp = 2 * (algo_quaternion.w * algo_quaternion.z +
                            algo_quaternion.x * algo_quaternion.y);
     float cosy_cosp = 1 - 2 * (algo_quaternion.y * algo_quaternion.y +
                                algo_quaternion.z * algo_quaternion.z);
-    algo_euler_angles.yaw = atan2(siny_cosp, cosy_cosp);
-    */
+    algo_euler_angles.yaw = atan2(siny_cosp, cosy_cosp) * (180.0 / M_PI);
+
+    ESP_LOGI(TAG, "Yaw: %.2f", algo_euler_angles.yaw);
 }
