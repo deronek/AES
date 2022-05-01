@@ -110,6 +110,7 @@ void ble_prepare_and_send_packet(uint32_t task_id)
     packet[data_size + 1] = 255;
 
     ble_send_data(packet, packet_length);
+    free(packet);
 }
 
 #define LT(n) n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n
