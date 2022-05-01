@@ -8,12 +8,16 @@
 
 #define NUMBER_OF_HC_SR04_PAIRS (NUMBER_OF_HC_SR04_SENSORS / 2)
 
-#define RMT_TX_CHANNEL 1                                 /* RMT channel for transmitter */
-#define RMT_TX_GPIO_NUM PIN_TRIGGER                      /* GPIO number for transmitter signal */
-#define RMT_RX_CHANNEL 0                                 /* RMT channel for receiver */
-#define RMT_RX_GPIO_NUM PIN_ECHO                         /* GPIO number for receiver */
-#define RMT_CLK_DIV 100                                  /* RMT counter clock divider */
-#define RMT_TX_CARRIER_EN 0                              /* Disable carrier */
+#define RMT_TX_CHANNEL 1            /* RMT channel for transmitter */
+#define RMT_TX_GPIO_NUM PIN_TRIGGER /* GPIO number for transmitter signal */
+#define RMT_RX_CHANNEL 0            /* RMT channel for receiver */
+#define RMT_RX_GPIO_NUM PIN_ECHO    /* GPIO number for receiver */
+#define RMT_CLK_DIV 100             /* RMT counter clock divider */
+#define RMT_TX_CARRIER_EN 0         /* Disable carrier */
+/**
+ * @todo fix this time
+ *
+ */
 #define rmt_item32_tIMEOUT_US 500000                     /*!< RMT receiver timeout value(us) */
 #define RMT_TICK_10_US (80000000 / RMT_CLK_DIV / 100000) /* RMT counter value for 10 us.(Source clock is APB clock) */
 #define ITEM_DURATION(d) ((d & 0x7fff) * 10 / RMT_TICK_10_US)
@@ -57,6 +61,22 @@ hc_sr04_pair_type hc_sr04_pairs[NUMBER_OF_HC_SR04_PAIRS] = {
 
 static uint64_t sensor0_start, sensor0_end, sensor1_start, sensor1_end;
 static bool sensor0_done, sensor1_done;
+
+// inline function declarations
+inline static uint32_t hc_sr04_calculate_distance(uint32_t time)
+{
+    // rescale time to microseconds
+    time *= 1000;
+    time /= 800;
+
+    // distance in micrometers
+    /**
+     * @todo Implement speed of sound variable based on the temperature.
+     * Remember to divide it by 2.
+     */
+    uint32_t distance = time * 172;
+    return distance;
+}
 
 // function declarations
 
@@ -120,7 +140,6 @@ TASK hc_sr04_measure()
     for (;;)
     {
         int val;
-        uint64_t time;
 
         /**
          * @todo Refactor this to use sensor pairs.
@@ -164,7 +183,8 @@ TASK hc_sr04_measure()
             rmt_item32_t *item = (rmt_item32_t *)xRingbufferReceive(rb[i], &rx_size, 1000);
             rmt_rx_stop(i);
 
-            hc_sr04_data.time[i] = item->duration0;
+            uint32_t time = item->duration0;
+            hc_sr04_data.distance[i] = hc_sr04_calculate_distance(time);
 
             // ESP_LOGI(TAG, "Sensor %d: level0 %d, duration0 %d, level1 %d, duration1 %d",
             //          i, item->level0, item->duration0, item->level1, item->duration1);
@@ -173,6 +193,7 @@ TASK hc_sr04_measure()
             vTaskDelay(MEASUREMENT_DELAY_TIME);
         }
         // ESP_LOGI(TAG, "Sending data to queue");
+        ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);
         algo_task_notify(TASK_FLAG_HC_SR04);
         ble_task_notify(TASK_FLAG_HC_SR04);
