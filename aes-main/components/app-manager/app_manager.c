@@ -24,7 +24,7 @@ static void app_manager_run();
 static void app_manager_update_state();
 static void app_manager_init_peripherals();
 static void app_manager_create_ble_task();
-static void app_manager_create_sensor_tasks();
+//static void app_manager_create_sensor_tasks();
 static void app_manager_create_main_task();
 static void app_manager_create_algo_task();
 
@@ -47,7 +47,7 @@ TASK app_manager_init()
     ESP_LOGI(TAG, "Core ID: %d", xPortGetCoreID());
     app_manager_init_peripherals();
     app_manager_create_ble_task();
-    app_manager_create_sensor_tasks();
+    //app_manager_create_sensor_tasks();
     app_manager_create_main_task();
 
     // estabilish communication with user here
@@ -60,8 +60,8 @@ TASK app_manager_init()
 
 void app_manager_init_peripherals()
 {
-    i2c_master_init();
-    mpu9255_init();
+    //i2c_master_init();
+    //mpu9255_init();
     // hc_sr04_init();
 }
 
