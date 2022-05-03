@@ -180,16 +180,20 @@ TASK hc_sr04_measure()
             /**
              * @todo Change tick time used to wait here, should probably be max timeout of sensor
              */
-            rmt_item32_t *item = (rmt_item32_t *)xRingbufferReceive(rb[i], &rx_size, 1000);
+            rmt_item32_t *item = (rmt_item32_t *)xRingbufferReceive(rb[i], &rx_size, 100);
             rmt_rx_stop(i);
 
-            uint32_t time = item->duration0;
+            uint32_t time = 0; //item->duration0;
             hc_sr04_data.distance[i] = hc_sr04_calculate_distance(time);
 
             // ESP_LOGI(TAG, "Sensor %d: level0 %d, duration0 %d, level1 %d, duration1 %d",
             //          i, item->level0, item->duration0, item->level1, item->duration1);
 
-            vRingbufferReturnItem(rb[i], (void *)item);
+if(item != NULL)
+{
+vRingbufferReturnItem(rb[i], (void *)item);
+}
+            
             vTaskDelay(MEASUREMENT_DELAY_TIME);
         }
         // ESP_LOGI(TAG, "Sending data to queue");

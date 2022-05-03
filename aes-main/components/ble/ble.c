@@ -16,7 +16,7 @@
 
 ///// BLE Variable/////////////////////////////
 
-#define GATTS_TABLE_TAG  "GATTS_SPP_DEMO"
+#define GATTS_TABLE_TAG  "GATTS_SPP"
 
 #define SPP_PROFILE_NUM             1
 #define SPP_PROFILE_APP_IDX         0
@@ -531,7 +531,7 @@ static void spp_uart_init(void)
     uart_param_config(UART_NUM_0, &uart_config);
     //Set UART pins
     uart_set_pin(UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    xTaskCreate(ble_send_data, "uTask", 2048, (void*)UART_NUM_0, 8, NULL);
+   // xTaskCreate(ble_prepare_and_send_packet, "uTask", 2048, (void*)UART_NUM_0, 8, NULL);
 }
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
@@ -719,7 +719,7 @@ void ble_prepare_and_send_packet(uint32_t task_id)
     /**
      * @todo Implement checksum - hardcoded value for now
      */
-    packet[data_size + 1] = 255;
+    packet[packet_length - 1] = 255;
 
     ble_send_data(packet, packet_length);
     free(packet);
