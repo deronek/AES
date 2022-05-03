@@ -62,7 +62,8 @@ void app_manager_init_peripherals()
 {
     //i2c_master_init();
     //mpu9255_init();
-    // hc_sr04_init();
+    // hc_sr04_init()
+    ble_init();
 }
 
 void app_manager_create_ble_task()
