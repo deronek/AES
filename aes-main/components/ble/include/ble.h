@@ -18,11 +18,6 @@
 #include "mpu9255.h"
 #include "hc_sr04.h"
 
-
-
-
-
-
 // constants
 extern bool ble_running;
 
@@ -31,9 +26,11 @@ extern bool ble_running;
 // structs
 
 // global variables
+extern TaskHandle_t ble_spp_task_handle;
 
 // function declarations
 void ble_init();
+bool ble_is_connected();
 TASK ble_main();
 
 #endif

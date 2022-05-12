@@ -34,6 +34,7 @@ typedef struct mpu9255_fifo_data_type_tag
 {
     mpu9255_sensor_data_type gyro;
     mpu9255_sensor_data_type accel;
+    mpu9255_sensor_data_type mag;
     union
     {
         struct
