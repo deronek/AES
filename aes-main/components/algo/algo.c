@@ -15,7 +15,7 @@ bool algo_running = false;
 
 // local variables
 static const char *TAG = "algo";
-SixAxis filter;
+// SixAxis filter;
 
 float phiHat_rad = 0.0f;
 float thetaHat_rad = 0.0f;
@@ -121,20 +121,20 @@ void algo_run()
 
     // ESP_LOGI(TAG, "%.3f %.3f", phiHat_rad * RAD_TO_DEG, thetaHat_rad * RAD_TO_DEG);
 
-    algo_update_quaternion();
-    // yaw
-    float siny_cosp = 2 * (algo_quaternion.w * algo_quaternion.z +
-                           algo_quaternion.x * algo_quaternion.y);
-    float cosy_cosp = 1 - 2 * (algo_quaternion.y * algo_quaternion.y +
-                               algo_quaternion.z * algo_quaternion.z);
-    algo_euler_angles.yaw = atan2f(siny_cosp, cosy_cosp) * RAD_TO_DEG;
+    // algo_update_quaternion();
+    // // yaw
+    // float siny_cosp = 2 * (algo_quaternion.w * algo_quaternion.z +
+    //                        algo_quaternion.x * algo_quaternion.y);
+    // float cosy_cosp = 1 - 2 * (algo_quaternion.y * algo_quaternion.y +
+    //                            algo_quaternion.z * algo_quaternion.z);
+    // algo_euler_angles.yaw = atan2f(siny_cosp, cosy_cosp) * RAD_TO_DEG;
 
-    algo_heading_data_type algo_heading;
-    algo_heading.heading = (int16_t)(algo_euler_angles.yaw * 10);
-    // ESP_LOGI(TAG, "%d", algo_heading.heading);
+    // algo_heading_data_type algo_heading;
+    // algo_heading.heading = (int16_t)(algo_euler_angles.yaw * 10);
+    // // ESP_LOGI(TAG, "%d", algo_heading.heading);
 
-    xQueueOverwrite(algo_heading_data_queue, &algo_heading);
-    app_manager_ble_task_notify(TASK_FLAG_ALGO);
+    // xQueueOverwrite(algo_heading_data_queue, &algo_heading);
+    // app_manager_ble_task_notify(TASK_FLAG_ALGO);
 
     // // roll
     // float sinr_cosp = 2 * (algo_quaternion.w * algo_quaternion.x + algo_quaternion.y * algo_quaternion.z);
