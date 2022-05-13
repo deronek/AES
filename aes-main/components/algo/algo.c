@@ -11,6 +11,10 @@
 algo_quaternion_type algo_quaternion;
 algo_euler_angles_type algo_euler_angles;
 QueueHandle_t algo_heading_data_queue;
+
+/**
+ * @todo Refactor this with getter
+ */
 bool algo_running = false;
 
 // local variables

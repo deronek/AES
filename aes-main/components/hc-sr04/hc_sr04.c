@@ -5,7 +5,10 @@
  * @brief Time to wait after every measurement (to decrease probability of inter-sensor disruptions)
  */
 #define MEASUREMENT_DELAY_TIME pdMS_TO_TICKS(10)
+#define HC_SR04_TIMEOUT pdMS_TO_TICKS(40)
 
+#define NUMBER_OF_TRIG_PINS (NUMBER_OF_HC_SR04_SENSORS / 2)
+#define NUMBER_OF_ECHO_PINS 2
 #define NUMBER_OF_HC_SR04_PAIRS (NUMBER_OF_HC_SR04_SENSORS / 2)
 
 #define RMT_TX_CHANNEL 1            /* RMT channel for transmitter */
@@ -45,11 +48,22 @@ QueueHandle_t hc_sr04_queue_data;
 // local sensor data
 hc_sr04_data_type hc_sr04_data;
 
-hc_sr04_gpio_type hc_sr04_gpio[NUMBER_OF_HC_SR04_SENSORS] = {
-    {GPIO_NUM_25,
-     GPIO_NUM_26},
-    {GPIO_NUM_32,
-     GPIO_NUM_33}};
+// hc_sr04_gpio_type hc_sr04_gpio[NUMBER_OF_HC_SR04_SENSORS] = {
+//     {GPIO_NUM_25,
+//      GPIO_NUM_26},
+//     {GPIO_NUM_32,
+//      GPIO_NUM_33}};
+
+uint8_t hc_sr04_trig_pins[NUMBER_OF_TRIG_PINS] = {
+    GPIO_NUM_25};
+
+uint8_t hc_sr04_echo_pins[NUMBER_OF_ECHO_PINS] = {
+    GPIO_NUM_26,
+    GPIO_NUM_33};
+
+RingbufHandle_t hc_sr04_rb_handles[NUMBER_OF_ECHO_PINS];
+
+hc_sr04_gpio_type hc_sr04_gpio[NUMBER_OF_HC_SR04_SENSORS] = {{GPIO_NUM_25, GPIO_NUM_26}, {GPIO_NUM_25, GPIO_NUM_33}};
 
 /**
  * @brief Pairs of HC-SR04 sensors which should be polled simultaneously.
@@ -82,31 +96,29 @@ inline static uint32_t hc_sr04_calculate_distance(uint32_t time)
 
 void hc_sr04_init()
 {
-    for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
+    /**
+     * @brief Initialize all trig pins
+     */
+    for (int i = 0; i < NUMBER_OF_TRIG_PINS; ++i)
     {
-        // GPIO init
-        hc_sr04_gpio_type sensor_gpio = hc_sr04_gpio[i];
+        uint8_t pin = hc_sr04_trig_pins[i];
 
-        // TRIG pin
-        gpio_reset_pin(sensor_gpio.trig_pin);
-        gpio_set_direction(sensor_gpio.trig_pin, GPIO_MODE_OUTPUT);
+        gpio_reset_pin(pin);
+        gpio_set_direction(pin, GPIO_MODE_OUTPUT);
 
-        /**
-         * @brief We do not need ECHO pin initialization
-         * when we use RMT.
-         */
-        /*
-        // ECHO pin
-        gpio_reset_pin(sensor_gpio.echo_pin);
-        gpio_set_direction(sensor_gpio.echo_pin, GPIO_MODE_INPUT);
-        gpio_set_intr_type(sensor_gpio.echo_pin, GPIO_INTR_ANYEDGE);
+        ESP_LOGI(TAG, "Initialized trig pin at GPIO %d", pin);
+    }
 
-        // out init
-        hc_sr04_data.time[i] = HC_SR04_INIT_VALUE;*/
+    /**
+     * @brief Initialize all echo pins
+     */
 
+    for (int i = 0; i < NUMBER_OF_ECHO_PINS; ++i)
+    {
+        uint8_t pin = hc_sr04_echo_pins[i];
         rmt_config_t rmt_rx;
         rmt_rx.channel = i;
-        rmt_rx.gpio_num = sensor_gpio.echo_pin;
+        rmt_rx.gpio_num = pin;
         rmt_rx.clk_div = RMT_CLK_DIV;
         rmt_rx.mem_block_num = 1;
         rmt_rx.rmt_mode = RMT_MODE_RX;
@@ -116,10 +128,49 @@ void hc_sr04_init()
         rmt_config(&rmt_rx);
         rmt_driver_install(rmt_rx.channel, 1000, 0);
 
-        ESP_LOGI(TAG, "Initialized ultrasonic sensor at pins: TRIG - %d, ECHO - %d", sensor_gpio.trig_pin, sensor_gpio.echo_pin);
+        rmt_get_ringbuf_handle(i, &(hc_sr04_rb_handles[i]));
+
+        ESP_LOGI(TAG, "Initialized echo pin at GPIO %d", pin);
     }
 
-    // create queue
+    // for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
+    // {
+    //     // GPIO init
+    //     hc_sr04_gpio_type sensor_gpio = hc_sr04_gpio[i];
+
+    //     // TRIG pin
+    //     gpio_reset_pin(sensor_gpio.trig_pin);
+    //     gpio_set_direction(sensor_gpio.trig_pin, GPIO_MODE_OUTPUT);
+
+    //     /**
+    //      * @brief We do not need ECHO pin initialization
+    //      * when we use RMT.
+    //      */
+    //     /*
+    //     // ECHO pin
+    //     gpio_reset_pin(sensor_gpio.echo_pin);
+    //     gpio_set_direction(sensor_gpio.echo_pin, GPIO_MODE_INPUT);
+    //     gpio_set_intr_type(sensor_gpio.echo_pin, GPIO_INTR_ANYEDGE);
+
+    //     // out init
+    //     hc_sr04_data.time[i] = HC_SR04_INIT_VALUE;*/
+
+    //     rmt_config_t rmt_rx;
+    //     rmt_rx.channel = i;
+    //     rmt_rx.gpio_num = sensor_gpio.echo_pin;
+    //     rmt_rx.clk_div = RMT_CLK_DIV;
+    //     rmt_rx.mem_block_num = 1;
+    //     rmt_rx.rmt_mode = RMT_MODE_RX;
+    //     rmt_rx.rx_config.filter_en = true;
+    //     rmt_rx.rx_config.filter_ticks_thresh = 100;
+    //     rmt_rx.rx_config.idle_threshold = rmt_item32_tIMEOUT_US / 10 * (RMT_TICK_10_US);
+    //     rmt_config(&rmt_rx);
+    //     rmt_driver_install(rmt_rx.channel, 1000, 0);
+    // }
+
+    /**
+     * @brief Construct data queue
+     */
     if ((hc_sr04_queue_data = xQueueCreate(1, sizeof(hc_sr04_data_type))) == NULL)
     {
         abort();
@@ -129,13 +180,7 @@ void hc_sr04_init()
 TASK hc_sr04_measure()
 {
     size_t rx_size = 0;
-    RingbufHandle_t rb[NUMBER_OF_HC_SR04_SENSORS];
-    /**
-     * @todo Move these ring buffers to init, also refactor
-     * channel numbers for multiple sensor usage
-     */
-    rmt_get_ringbuf_handle(0, &(rb[0]));
-    rmt_get_ringbuf_handle(1, &(rb[1]));
+    rmt_item32_t *data[NUMBER_OF_ECHO_PINS];
 
     for (;;)
     {
@@ -153,47 +198,86 @@ TASK hc_sr04_measure()
          * in pairs like 1-5, 2-6, 3-7, 4-8 to minimize
          * sensor intereference.
          */
-        for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
+        for (int trig = 0; trig < NUMBER_OF_TRIG_PINS; ++trig)
         {
             /**
              * @brief We won't use TX channel of RMT, because it only
              * has 8 channels and we will probably need eight different
              * channels to send.
              */
+            uint8_t trig_pin = hc_sr04_trig_pins[trig];
             // rmt_write_items(RMT_TX_CHANNEL, &item, 1, true);
             // rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY);
-            hc_sr04_gpio_type sensor_gpio = hc_sr04_gpio[i];
-            gpio_set_level(sensor_gpio.trig_pin, 1);
+            gpio_set_level(trig_pin, 1);
             /**
              * @todo Change this delay to actually 10 us if possible.
              * Current implementation is slower this way and it is probable
              * that we miss some echo pulses this way.
              */
             vTaskDelay(pdMS_TO_TICKS(1));
-            gpio_set_level(sensor_gpio.trig_pin, 0);
+            gpio_set_level(trig_pin, 0);
+
             /**
              * @todo Do we really want to start the RX here? Maybe before sending
              * trigger?
              */
-            rmt_rx_start(i, 1);
+            for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
+            {
+                rmt_rx_start(echo, 1);
+            }
 
             /**
-             * @todo Change tick time used to wait here, should probably be max timeout of sensor
+             * @todo We wait for the first item to receive, then we attempt to receive the second.
+             * There probably is not way to optimize this, since we do not want to move forward until
+             * both sensor data are received (or timeout happens).
              */
-            rmt_item32_t *item = (rmt_item32_t *)xRingbufferReceive(rb[i], &rx_size, 100);
-            rmt_rx_stop(i);
+            TickType_t ticks_to_wait = HC_SR04_TIMEOUT;
+            TickType_t start = xTaskGetTickCount();
+            for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
+            {
+                data[echo] = (rmt_item32_t *)xRingbufferReceive(hc_sr04_rb_handles[echo], &rx_size, ticks_to_wait);
+                rmt_rx_stop(echo);
 
-            uint32_t time = 0; //item->duration0;
-            hc_sr04_data.distance[i] = hc_sr04_calculate_distance(time);
+                /**
+                 * @brief Decrease time to wait for next sensors, because we already waited that time.
+                 * This is unsigned arithmetic, so it should give correct value even if FreeRTOS
+                 * tick count overflows.
+                 */
+                ticks_to_wait -= xTaskGetTickCount() - start;
+            }
 
-            // ESP_LOGI(TAG, "Sensor %d: level0 %d, duration0 %d, level1 %d, duration1 %d",
-            //          i, item->level0, item->duration0, item->level1, item->duration1);
+            // /**
+            //  * @todo Maybe refactor distance calculation for other
+            //  * situation than pairs. Just hardcoded for 2 sensors here.
+            //  */
+            // if (data[0])
+            //     hc_sr04_data.distance[trig] = hc_sr04_calculate_distance(data[0]->duration0);
+            // vRingbufferReturnItem(rb[i], (void *)item);
+            // else hc_sr04_data.distance[trig] = 0;
 
-if(item != NULL)
-{
-vRingbufferReturnItem(rb[i], (void *)item);
-}
-            
+            // if (data[1])
+            //     hc_sr04_data.distance[trig + NUMBER_OF_TRIG_PINS] = hc_sr04_calculate_distance(data[1]->duration0);
+            // else
+            //     hc_sr04_data.distance[trig + NUMBER_OF_TRIG_PINS] = 0;
+
+            for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
+            {
+                size_t measurement_index = trig + echo * NUMBER_OF_TRIG_PINS;
+                if (data[echo])
+                {
+                    uint32_t distance = hc_sr04_calculate_distance(data[echo]->duration0);
+                    vRingbufferReturnItem(hc_sr04_rb_handles[echo], (void *)data[echo]);
+
+                    hc_sr04_data.distance[measurement_index] = distance;
+                }
+                else
+                {
+                    hc_sr04_data.distance[measurement_index] = 0;
+                }
+            }
+
+            // ESP_LOGI(TAG, "Sensor %d - distance %d", i, hc_sr04_data.distance[i]);
+
             vTaskDelay(MEASUREMENT_DELAY_TIME);
         }
         // ESP_LOGI(TAG, "Sending data to queue");
