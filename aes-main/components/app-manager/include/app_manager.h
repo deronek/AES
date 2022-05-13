@@ -39,13 +39,15 @@ typedef enum app_manager_state_type_tag
 typedef enum app_manager_task_id_type_tag
 {
     TASK_ID_HC_SR04 = 0,
-    TASK_ID_MPU9255 = 1
+    TASK_ID_MPU9255 = 1,
+    TASK_ID_ALGO = 2,
 } app_manager_task_id_type;
 
 typedef enum app_manager_task_flag_type_tag
 {
     TASK_FLAG_HC_SR04 = (1 << TASK_ID_HC_SR04),
-    TASK_FLAG_MPU9255 = (1 << TASK_ID_MPU9255)
+    TASK_FLAG_MPU9255 = (1 << TASK_ID_MPU9255),
+    TASK_FLAG_ALGO = (1 << TASK_ID_ALGO)
 } app_manager_task_flag_type;
 
 // structs

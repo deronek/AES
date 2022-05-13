@@ -8,7 +8,8 @@ app_manager_state_type app_manager_state = APP_MANAGER_INIT;
 
 const uint8_t app_manager_task_data_size[] = {
     sizeof(hc_sr04_data_type),
-    sizeof(mpu9255_fifo_data_type)};
+    sizeof(mpu9255_fifo_data_type),
+    sizeof(algo_heading_data_type)};
 
 // local variables
 static const char *TAG = "app_manager";
@@ -63,6 +64,7 @@ void app_manager_init_peripherals()
     i2c_master_init();
     mpu9255_init();
     // hc_sr04_init();
+    ble_init();
 }
 
 void app_manager_create_ble_task()
@@ -70,7 +72,7 @@ void app_manager_create_ble_task()
     task_utils_create_task(
         ble_main,
         "ble_main",
-        2048,
+        4096,
         NULL,
         3,
         &app_manager_ble_task_handle,
@@ -89,7 +91,7 @@ void app_manager_create_sensor_tasks()
         "mpu9255_task_measure",
         2048,
         NULL,
-        4,
+        5,
         &app_manager_mpu9255_task_handle,
         0);
 
@@ -125,7 +127,7 @@ void app_manager_create_algo_task()
         "algo_main",
         2048,
         NULL,
-        3,
+        4,
         &app_manager_algo_task_handle,
         0);
 }
@@ -133,6 +135,10 @@ void app_manager_create_algo_task()
 TASK app_manager_main()
 {
     // char *buffer = malloc(400);
+    // if (buffer == NULL)
+    // {
+    //     abort();
+    // }
     // TickType_t last_wake_time = xTaskGetTickCount();
     // for (;;)
     // {
@@ -158,7 +164,26 @@ TASK app_manager_main()
     vTaskPrioritySet(NULL, 2);
     for (;;)
     {
-        vTaskDelay(1000);
+        vTaskDelay(pdMS_TO_TICKS(10000));
+        // size_t size = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+        // printf("%d\n", size);
+
+        // print high water mark of tasks stacks
+        // UBaseType_t highmark_ble_spp = uxTaskGetStackHighWaterMark(ble_spp_task_handle);
+        // UBaseType_t highmark_ble = uxTaskGetStackHighWaterMark(app_manager_ble_task_handle);
+        // UBaseType_t highmark_mpu9255 = uxTaskGetStackHighWaterMark(app_manager_mpu9255_task_handle);
+        // UBaseType_t highmark_main = uxTaskGetStackHighWaterMark(app_manager_main_task_handle);
+        // UBaseType_t highmark_algo = uxTaskGetStackHighWaterMark(app_manager_algo_task_handle);
+
+        // printf("highmark_ble_spp: %d\n", highmark_ble_spp);
+        // printf("highmark_ble: %d\n", highmark_ble);
+        // printf("highmark_mpu9255: %d\n", highmark_mpu9255);
+        // printf("highmark_main: %d\n", highmark_main);
+        // printf("highmark_algo: %d\n", highmark_algo);
+
+        // print runtime stats
+        // vTaskGetRunTimeStats(buffer);
+        // printf("%s", buffer);
     }
 }
 
@@ -240,7 +265,7 @@ void app_manager_algo_task_notify(app_manager_task_flag_type task_flag)
 
 void app_manager_ble_task_notify(app_manager_task_flag_type task_flag)
 {
-    if (ble_running)
+    if (ble_is_connected())
     {
         app_manager_task_notify(app_manager_ble_task_handle, task_flag);
     }

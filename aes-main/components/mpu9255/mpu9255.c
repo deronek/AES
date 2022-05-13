@@ -5,16 +5,14 @@ QueueHandle_t mpu9255_queue_fifo_data;
 unsigned long timestamp;
 
 // local variables
-
-static mpu9255_sensor_data_type gyro_offset;
-static mpu9255_sensor_data_type accel_offset;
+static mpu9255_sensor_data_type mag_bias;
 
 // sensor data, not exposed
 static mpu9255_fifo_data_type mpu9255_fifo_data;
 
 static const char *TAG = "mpu9255";
 
-static const unsigned char SENSORS = INV_XYZ_GYRO | INV_XYZ_ACCEL;
+static const unsigned char SENSORS = INV_XYZ_GYRO | INV_XYZ_ACCEL | INV_XYZ_COMPASS;
 
 // constants
 #define DEFAULT_MPU_HZ 10
@@ -65,7 +63,10 @@ void mpu9255_calibrate()
     ESP_LOGI(TAG, "Starting calibration, %d points", CALIBRATION_DATA_POINTS);
     long gyro_bias[3] = {0};
     long accel_bias[3] = {0};
+    // long mag_bias[3] = {0};
     mpu9255_fifo_data_type fifo_data;
+
+    memset(mag_bias.array, 0, sizeof(mag_bias.array));
 
     for (int i = 0; i < CALIBRATION_DATA_POINTS; ++i)
     {
@@ -78,6 +79,10 @@ void mpu9255_calibrate()
         accel_bias[0] += (long)fifo_data.accel.x;
         accel_bias[1] += (long)fifo_data.accel.y;
         accel_bias[2] += (long)fifo_data.accel.z;
+
+        mag_bias.x += (long)fifo_data.mag.x;
+        mag_bias.y += (long)fifo_data.mag.y;
+        mag_bias.z += (long)fifo_data.mag.z;
     }
 
     float gyro_sens;
@@ -104,6 +109,7 @@ void mpu9255_calibrate()
 
     ESP_LOGI(TAG, "Gyro bias: %li %li %li", gyro_bias[0], gyro_bias[1], gyro_bias[2]);
     ESP_LOGI(TAG, "Accel bias: %li %li %li", accel_bias[0], accel_bias[1], accel_bias[2]);
+    ESP_LOGI(TAG, "Mag bias: %hi %hi %hi", mag_bias.x, mag_bias.y, mag_bias.z);
 
     mpu_set_gyro_bias_reg(gyro_bias);
     mpu_set_accel_bias_6500_reg(accel_bias);
@@ -144,6 +150,11 @@ esp_err_t mpu9255_init()
     ESP_ERROR_CHECK(dmp_register_tap_cb(tap_cb));
     ESP_ERROR_CHECK(dmp_set_fifo_rate(DEFAULT_MPU_HZ));
     ESP_ERROR_CHECK(mpu_set_dmp_state(1));
+    // ESP_ERROR_CHECK(mpu_set_compass_sample_rate(DEFAULT_MPU_HZ));
+
+    // unsigned short rate;
+    // mpu_get_compass_sample_rate(&rate);
+    // ESP_LOGI(TAG, "Compass sample rate: %hu", rate);
 
     ESP_LOGI(TAG, "MPU9255 initialized");
 
@@ -177,10 +188,10 @@ esp_err_t mpu9255_init()
         ESP_LOGE(TAG, "Compass self test failed");
     }
 
-    if (retval != INV_SELF_TEST_ALL_PASS)
-    {
-        abort();
-    }
+    // if (retval != INV_SELF_TEST_ALL_PASS)
+    // {
+    //     abort();
+    // }
 
     // create queue
     if ((mpu9255_queue_fifo_data = xQueueCreate(1, sizeof(mpu9255_fifo_data_type))) == NULL)
@@ -188,7 +199,6 @@ esp_err_t mpu9255_init()
         abort();
     }
 
-    mpu9255_init_int_pin();
     dmp_set_interrupt_mode(DMP_INT_CONTINUOUS);
 
     return ESP_OK;
@@ -196,6 +206,8 @@ esp_err_t mpu9255_init()
 
 TASK mpu9255_task_measure()
 {
+    mpu_reset_fifo();
+    mpu9255_init_int_pin();
     short sensors;
     unsigned char more;
     int retval;
@@ -224,15 +236,18 @@ TASK mpu9255_task_measure()
             ESP_LOGV(TAG, "Read FIFO data from MPU9255. Timestamp: %lu, bytes left in FIFO: %hhu", timestamp, more);
         }
 
-        // for (int axis = 0; axis < MPU9255_AXIS_NUMBER; ++axis)
-        // {
-        //     mpu9255_fifo_data.gyro.array[axis] -= gyro_offset.array[axis];
-        //     mpu9255_fifo_data.accel.array[axis] -= accel_offset.array[axis];
-        // }
+        mpu_get_compass_reg(mpu9255_fifo_data.mag.array, NULL);
+
+        for (int axis = 0; axis < MPU9255_AXIS_NUMBER; ++axis)
+        {
+            // mpu9255_fifo_data.gyro.array[axis] -= gyro_offset.array[axis];
+            // mpu9255_fifo_data.accel.array[axis] -= accel_offset.array[axis];
+            // mpu9255_fifo_data.mag.array[axis] -= mag_bias.array[axis];
+        }
 
         xQueueOverwrite(mpu9255_queue_fifo_data, &mpu9255_fifo_data);
         app_manager_algo_task_notify(TASK_FLAG_MPU9255);
-        app_manager_ble_task_notify(TASK_FLAG_MPU9255);
+        // app_manager_ble_task_notify(TASK_FLAG_MPU9255);
 
         /**
          * @todo Implement DMP interrupt - we can be notified when the
@@ -260,5 +275,5 @@ void mpu9255_init_int_pin()
     gpio_reset_pin(MPU9255_INT_PIN);
     gpio_set_direction(MPU9255_INT_PIN, GPIO_MODE_INPUT);
     gpio_set_intr_type(MPU9255_INT_PIN, GPIO_INTR_POSEDGE);
-    gpio_isr_handler_add(MPU9255_INT_PIN, mpu9255_isr, (void *)MPU9255_INT_PIN);
+    gpio_isr_handler_add(MPU9255_INT_PIN, mpu9255_isr, NULL);
 }

@@ -14,6 +14,8 @@
 #include "esp_log.h"
 #include "task_utils.h"
 
+#include "inv_mpu.h"
+
 // constants
 
 // enums
@@ -34,9 +36,15 @@ typedef struct algo_euler_angles_type_tag
     float roll;
 } algo_euler_angles_type;
 
+typedef struct algo_heading_data_type_tag
+{
+    int16_t heading;
+} algo_heading_data_type;
+
 // global variables
 extern algo_quaternion_type algo_quaternion;
 extern algo_euler_angles_type algo_euler_angles;
+extern QueueHandle_t algo_heading_data_queue;
 extern bool algo_running;
 
 // function declarations
