@@ -55,11 +55,20 @@ hc_sr04_data_type hc_sr04_data;
 //      GPIO_NUM_33}};
 
 uint8_t hc_sr04_trig_pins[NUMBER_OF_TRIG_PINS] = {
-    GPIO_NUM_25};
+    GPIO_NUM_5};
 
 uint8_t hc_sr04_echo_pins[NUMBER_OF_ECHO_PINS] = {
-    GPIO_NUM_26,
-    GPIO_NUM_33};
+    GPIO_NUM_22,
+    GPIO_NUM_23};
+
+/**
+ * @brief Hardcoded distance offset for each sensor.
+ * This should be equal to distance of the sensor from the vehicle "bubble".
+ * Units are micrometers.
+ */
+uint32_t hc_sr04_distance_offset[NUMBER_OF_HC_SR04_SENSORS] = {
+    0,
+    0};
 
 RingbufHandle_t hc_sr04_rb_handles[NUMBER_OF_ECHO_PINS];
 
@@ -265,7 +274,7 @@ TASK hc_sr04_measure()
                 size_t measurement_index = trig + echo * NUMBER_OF_TRIG_PINS;
                 if (data[echo])
                 {
-                    uint32_t distance = hc_sr04_calculate_distance(data[echo]->duration0);
+                    uint32_t distance = hc_sr04_calculate_distance(data[echo]->duration0) - hc_sr04_distance_offset[measurement_index];
                     vRingbufferReturnItem(hc_sr04_rb_handles[echo], (void *)data[echo]);
 
                     hc_sr04_data.distance[measurement_index] = distance;
