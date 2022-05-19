@@ -4,8 +4,8 @@
 /**
  * @brief Time to wait after every measurement (to decrease probability of inter-sensor disruptions)
  */
-#define MEASUREMENT_DELAY_TIME pdMS_TO_TICKS(10)
-#define HC_SR04_TIMEOUT pdMS_TO_TICKS(40)
+#define MEASUREMENT_DELAY_TIME pdMS_TO_TICKS(500)
+#define HC_SR04_TIMEOUT pdMS_TO_TICKS(100)
 
 #define NUMBER_OF_TRIG_PINS (NUMBER_OF_HC_SR04_SENSORS / 2)
 #define NUMBER_OF_ECHO_PINS 2
@@ -55,11 +55,12 @@ hc_sr04_data_type hc_sr04_data;
 //      GPIO_NUM_33}};
 
 uint8_t hc_sr04_trig_pins[NUMBER_OF_TRIG_PINS] = {
-    GPIO_NUM_5};
+    GPIO_NUM_33,
+    GPIO_NUM_25};
 
 uint8_t hc_sr04_echo_pins[NUMBER_OF_ECHO_PINS] = {
-    GPIO_NUM_22,
-    GPIO_NUM_23};
+    GPIO_NUM_14,
+    GPIO_NUM_12};
 
 /**
  * @brief Hardcoded distance offset for each sensor.
@@ -125,6 +126,10 @@ void hc_sr04_init()
     for (int i = 0; i < NUMBER_OF_ECHO_PINS; ++i)
     {
         uint8_t pin = hc_sr04_echo_pins[i];
+
+        gpio_reset_pin(pin);
+        gpio_set_pull_mode(pin, GPIO_PULLDOWN_ONLY);
+
         rmt_config_t rmt_rx;
         rmt_rx.channel = i;
         rmt_rx.gpio_num = pin;
@@ -271,7 +276,8 @@ TASK hc_sr04_measure()
 
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
-                size_t measurement_index = trig + echo * NUMBER_OF_TRIG_PINS;
+                size_t measurement_index = echo + trig * NUMBER_OF_TRIG_PINS;
+                ESP_LOGI(TAG, "index %d", measurement_index);
                 if (data[echo])
                 {
                     uint32_t distance = hc_sr04_calculate_distance(data[echo]->duration0) - hc_sr04_distance_offset[measurement_index];
@@ -290,7 +296,8 @@ TASK hc_sr04_measure()
             vTaskDelay(MEASUREMENT_DELAY_TIME);
         }
         // ESP_LOGI(TAG, "Sending data to queue");
-        ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
+        // ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
+        ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);
         app_manager_algo_task_notify(TASK_FLAG_HC_SR04);
         app_manager_ble_task_notify(TASK_FLAG_HC_SR04);
