@@ -16,7 +16,7 @@ static const char *TAG = "calc_utils";
 /**
  * @brief Get interpolation of parameter value on map Y = f(X)
  */
-float calc_utils_interpolate(const float x, const float y, const uint8_t num_values, const float value)
+float calc_utils_interpolate(const float *x, const float *y, const uint8_t num_values, const float value)
 {
     float out;
 
