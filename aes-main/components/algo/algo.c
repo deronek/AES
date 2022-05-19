@@ -31,11 +31,12 @@ float thetaHat_rad = 0.0f;
 #define QUATERNION_SCALE_FACTOR (2 << 29)
 
 // function declarations
-void algo_update_quaternion();
+static void algo_update_quaternion();
 
 // function definitions
 void algo_init()
 {
+    hall_init();
     /**
      * @todo Initialize all algo data structures
      */
@@ -44,6 +45,7 @@ void algo_init()
         abort();
     }
 }
+
 void algo_update_quaternion()
 {
     algo_quaternion.w = (float)algo_mpu9255_fifo_data.quaternion.w / QUATERNION_SCALE_FACTOR;
