@@ -70,11 +70,11 @@ void motor_calculate_control()
     if (motor_control_input_data.angle >= 0)
     {
         motor_control_output_data.pwm1 = SPEED;
-        motor_control_output_data.pwm2 = SPEED * (cosf(2 * angle) + 1) / 2;
+        motor_control_output_data.pwm2 = SPEED * (cosf(2 * motor_control_input_data.angle) + 1) / 2;
     }
     else
     {
-        motor_control_output_data.pwm1 = SPEED * (cosf(2 * angle) + 1) / 2;
+        motor_control_output_data.pwm1 = SPEED * (cosf(2 * motor_control_input_data.angle) + 1) / 2;
         motor_control_output_data.pwm2 = SPEED;
     }
 }
