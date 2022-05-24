@@ -73,12 +73,12 @@ void photo_encoder_init()
     gpio_set_direction(PHOTO_ENCODER_GPIO_PIN_R, GPIO_MODE_INPUT);
 
     /**
-     * @brief Count only negative edges; sensor is active low
+     * @brief Count both edges. Arbitration is done in ISR.
      */
-    gpio_set_intr_type(PHOTO_ENCODER_GPIO_PIN_L, GPIO_INTR_NEGEDGE);
+    gpio_set_intr_type(PHOTO_ENCODER_GPIO_PIN_L, GPIO_INTR_ANYEDGE);
     gpio_isr_handler_add(PHOTO_ENCODER_GPIO_PIN_L, photo_encoder_l_isr, NULL);
 
-    gpio_set_intr_type(PHOTO_ENCODER_GPIO_PIN_R, GPIO_INTR_NEGEDGE);
+    gpio_set_intr_type(PHOTO_ENCODER_GPIO_PIN_R, GPIO_INTR_ANYEDGE);
     gpio_isr_handler_add(PHOTO_ENCODER_GPIO_PIN_R, photo_encoder_r_isr, NULL);
 }
 
