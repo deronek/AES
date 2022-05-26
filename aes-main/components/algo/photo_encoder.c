@@ -25,15 +25,18 @@
 // // distance of full wheel turn
 // #define DIST_FULL_TURN (2 * M_PI * R)
 
-// local variables
+// global variables
+photo_encoder_distance_type photo_encoder_distance;
 
-// distance in micrometers
-static uint32_t distance_l = 0;
-static uint32_t distance_r = 0;
+// local variables
 
 /**
  * @todo Implement some filtering using this interrupt
  */
+// local function definitions
+static void IRAM_ATTR photo_encoder_l_isr(void *arg);
+static void IRAM_ATTR photo_encoder_r_isr(void *arg);
+
 // local function declarations
 
 static void IRAM_ATTR photo_encoder_l_isr(void *arg)
@@ -42,11 +45,11 @@ static void IRAM_ATTR photo_encoder_l_isr(void *arg)
 
     if (level)
     {
-        distance_l += WIDTH_STRIPE;
+        photo_encoder_distance.left += WIDTH_STRIPE;
     }
     else
     {
-        distance_l += DISTANCE_STRIPE;
+        photo_encoder_distance.left += DISTANCE_STRIPE;
     }
 }
 
@@ -56,13 +59,15 @@ static void IRAM_ATTR photo_encoder_r_isr(void *arg)
 
     if (level)
     {
-        distance_r += WIDTH_STRIPE;
+        photo_encoder_distance.right += WIDTH_STRIPE;
     }
     else
     {
-        distance_r += DISTANCE_STRIPE;
+        photo_encoder_distance.right += DISTANCE_STRIPE;
     }
 }
+
+// function declarations
 
 void photo_encoder_init()
 {
@@ -76,13 +81,23 @@ void photo_encoder_init()
      * @brief Count both edges. Arbitration is done in ISR.
      */
     gpio_set_intr_type(PHOTO_ENCODER_GPIO_PIN_L, GPIO_INTR_ANYEDGE);
-    gpio_isr_handler_add(PHOTO_ENCODER_GPIO_PIN_L, photo_encoder_l_isr, NULL);
-
     gpio_set_intr_type(PHOTO_ENCODER_GPIO_PIN_R, GPIO_INTR_ANYEDGE);
+
+    /**
+     * @brief Initialize output data struct.
+     */
+    photo_encoder_distance.left = 0;
+    photo_encoder_distance.right = 0;
+}
+
+void photo_encoder_enable_isr()
+{
+    gpio_isr_handler_add(PHOTO_ENCODER_GPIO_PIN_L, photo_encoder_l_isr, NULL);
     gpio_isr_handler_add(PHOTO_ENCODER_GPIO_PIN_R, photo_encoder_r_isr, NULL);
 }
 
-uint32_t photo_encoder_get_distance()
+void photo_encoder_disable_isr()
 {
-    return (distance_l + distance_r) / 2;
+    gpio_isr_handler_remove(photo_encoder_l_isr);
+    gpio_isr_handler_remove(photo_encoder_r_isr);
 }

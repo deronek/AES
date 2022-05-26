@@ -1,5 +1,6 @@
 #include "algo.h"
 #include "data_receive.h"
+#include "photo_encoder.h"
 
 // constants
 #define RAD_TO_DEG (180.0 / M_PI)
@@ -18,8 +19,13 @@ QueueHandle_t algo_heading_data_queue;
 bool algo_running = false;
 
 // local variables
+/**
+ * @brief Heading of finish line in degress;
+ * @todo Make this value dynamic from controller app.
+ */
 static const char *TAG = "algo";
-// SixAxis filter;
+
+static float finish_heading = 30.0;
 
 float phiHat_rad = 0.0f;
 float thetaHat_rad = 0.0f;
@@ -56,9 +62,8 @@ void algo_update_quaternion()
 
 TASK algo_main()
 {
-    // CompInit(&filter, 0.1f, 0.85f);
     algo_running = true;
-    // CompStart(&filter);
+    photo_encoder_enable_isr();
     // get start time of this iteration
     TickType_t last_wake_time = xTaskGetTickCount();
     for (;;)
@@ -75,7 +80,8 @@ TASK algo_main()
         algo_data_receive_get_latest();
 
         // run algo calculations
-        // ESP_LOGI(TAG, "Algo iteration");
+        heading_calculate();
+
         algo_run();
 
         /**

@@ -4,8 +4,8 @@
 
 #define HALL_GPIO_PIN GPIO_NUM_15
 
-// local variables
-static bool detected = false;
+// global variables
+bool detected = false;
 
 /**
  * @todo Implement some filtering using this interrupt
@@ -21,7 +21,16 @@ void hall_init()
     gpio_reset_pin(HALL_GPIO_PIN);
     gpio_set_direction(HALL_GPIO_PIN, GPIO_MODE_INPUT);
     gpio_set_intr_type(HALL_GPIO_PIN, GPIO_INTR_POSEDGE);
+}
+
+void hall_enable_isr()
+{
     gpio_isr_handler_add(HALL_GPIO_PIN, hall_isr, NULL);
+}
+
+void hall_disable_isr()
+{
+    gpio_isr_handler_remove(hall_isr);
 }
 
 bool hall_get_detected()
