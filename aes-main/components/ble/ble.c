@@ -218,6 +218,28 @@ static const esp_gatts_attr_db_t spp_gatt_db[SPP_IDX_NB] =
 
 //////////////////////////////////////////////////////////////////////////////
 
+// constants
+
+// packet ID for controller incoming packets
+#define BLE_CONTROLLER_PACKET_HEADER 0x10
+
+// enums
+
+typedef enum ble_controller_request_id_type_tag =
+    {
+        REQUEST_START_DRIVING = 0x00;
+REQUEST_STOP_DRIVING = 0x01;
+REQUEST_MPU9255_CALIBRATE = 0x02;
+}
+ble_controller_REQUEST_id_type;
+
+typedef enum ble_controller_response_id_type_tag =
+    {
+        RESPONSE_OK = 0x00;
+RESPONSE_FINISHED = 0x02;
+RESPONSE_FAIL = 0xFF;
+}
+
 // global variables
 bool ble_running = false;
 TaskHandle_t ble_spp_task_handle;
@@ -230,7 +252,8 @@ static void ble_receive_data(uint8_t id, uint8_t *packet);
 static void ble_handle_notification(uint32_t task_notification_value);
 static uint32_t ble_get_task_id_from_flag(uint32_t task_id);
 static void ble_prepare_and_send_packet(uint32_t task_id);
-static esp_err_t ble_send_data(uint8_t *data, uint8_t len);
+static esp_err_t ble_send_data_notify(uint8_t *data, uint8_t len);
+static void ble_handle_controller_packet(esp_ble_gatts_cb_param_t *p_data);
 
 ///////function BLE init//////////////////
 
@@ -315,7 +338,7 @@ TASK ble_main()
          * @brief
          * - wait for task notification from any sensor task
          * - get data from sensor queue
-         * - send that data using ble_send_data()
+         * - send that data using ble_send_data_notify()
          */
         uint32_t task_notification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         // if (!gatt_get_tcb_by_idx(spp_conn_id))
@@ -404,11 +427,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 #endif
             else if (res == SPP_IDX_SPP_DATA_RECV_VAL)
             {
-#ifdef SPP_DEBUG_MODE
-                esp_log_buffer_char(GATTS_TABLE_TAG, (char *)(p_data->write.value), p_data->write.len);
-#else
-                uart_write_bytes(UART_NUM_0, (char *)(p_data->write.value), p_data->write.len);
-#endif
+                ble_handle_controller_packet(p_data);
             }
             else
             {
@@ -707,7 +726,7 @@ void ble_handle_notification(uint32_t task_notification_value)
 
 /**
  * @brief Prepare packet to send via BLE and send it using
- * ble_send_data function.
+ * ble_send_data_notify function.
  *
  * Multi-byte data is send using system endianness (Xtensa LX6 is little-endian).
  *
@@ -749,7 +768,7 @@ void ble_prepare_and_send_packet(uint32_t task_id)
      */
     packet[packet_length - 1] = 255;
 
-    ble_send_data(packet, packet_length);
+    ble_send_data_notify(packet, packet_length);
     free(packet);
 }
 
@@ -803,7 +822,7 @@ void ble_receive_data(uint8_t id, uint8_t *destination)
     xQueuePeek(queue, destination, 0);
 }
 
-esp_err_t ble_send_data(uint8_t *packet, uint8_t packet_length)
+esp_err_t ble_send_data_notify(uint8_t *packet, uint8_t packet_length)
 {
     // ESP_LOGI(TAG, "Sending packet, id %hhx, timestamp %hhx %hhx %hhx %hhx, data size %hhx", packet[0],
     //          packet[1], packet[2], packet[3], packet[4], packet[5]);
@@ -819,4 +838,39 @@ esp_err_t ble_send_data(uint8_t *packet, uint8_t packet_length)
 bool ble_is_connected()
 {
     return is_connected;
+}
+
+void ble_handle_controller_packet(esp_ble_gatts_cb_param_t *p_data)
+{
+    struct gatts_write_evt_param event = p_data->write;
+    if (event.len != 2)
+    {
+        ESP_LOGE(TAG, "Received controller packet with length %d", p_data->len);
+        return;
+    }
+
+    if (event.val[0] != BLE_CONTROLLER_PACKET_HEADER)
+    {
+        ESP_LOGE(TAG, "Received controller packet with header %d", p_data->val[0]);
+        return;
+    }
+
+    switch (event.val[1])
+    {
+    case RESPONSE_START_DRIVING:
+        ESP_LOGW(TAG, "Start driving");
+        break;
+    case RESPONSE_STOP_DRIVING:
+        ESP_LOGW(TAG, "Stop driving");
+        break;
+    case RESPONSE_MPU9255_CALIBRATE:
+        ESP_LOGI(TAG, "MPU9255 start caliration");
+        break;
+    }
+
+    // for (int i = 0; i < event.len; ++i)
+    // {
+    //     printf("%c", event.value[i]);
+    // }
+    // printf("\n");
 }
