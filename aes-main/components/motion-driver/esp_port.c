@@ -1,5 +1,7 @@
 #include "esp_port.h"
 
+#include "freertos/semphr.h"
+
 esp_err_t esp_i2c_write(unsigned char device_address, unsigned char reg_addr, unsigned char write_size, unsigned char const *write_buffer)
 {
     // // create buffer with reg_addr before the rest of the data
@@ -10,6 +12,8 @@ esp_err_t esp_i2c_write(unsigned char device_address, unsigned char reg_addr, un
     // memcpy(write_buf + 1, data, length * sizeof(*data));
 
     // return i2c_master_write_to_device(I2C_MASTER_NUM, slave_addr, write_buf, new_len, pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS));
+
+    xSemaphoreTake(i2c_mutex_handle, portMAX_DELAY);
 
     esp_err_t err = ESP_OK;
     uint8_t buffer[I2C_LINK_RECOMMENDED_SIZE(1)] = {0};
@@ -46,5 +50,7 @@ esp_err_t esp_i2c_write(unsigned char device_address, unsigned char reg_addr, un
 
 end:
     i2c_cmd_link_delete_static(handle);
+
+    xSemaphoreGive(i2c_mutex_handle);
     return err;
 }

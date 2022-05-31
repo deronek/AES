@@ -6,6 +6,7 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include "i2c.h"
 #include "xtensa/hal.h"
 #include "hal/cpu_hal.h"
 #include "driver/i2c.h"
@@ -13,6 +14,7 @@
 #include "esp_attr.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 
 static const char *TAG = "md-driver";
 
@@ -45,7 +47,10 @@ esp_err_t esp_i2c_write(unsigned char device_address, unsigned char reg_addr, un
 
 inline esp_err_t esp_i2c_read(unsigned char slave_addr, unsigned char reg_addr, unsigned char length, unsigned char *data)
 {
-    return i2c_master_write_read_device(I2C_MASTER_NUM, slave_addr, &reg_addr, 1, data, length, pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS));
+    xSemaphoreTake(i2c_mutex_handle, portMAX_DELAY);
+    esp_err_t ret = i2c_master_write_read_device(I2C_MASTER_NUM, slave_addr, &reg_addr, 1, data, length, pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS));
+    xSemaphoreGive(i2c_mutex_handle);
+    return ret;
 }
 
 inline void esp_delay_ms(unsigned long num_ms)

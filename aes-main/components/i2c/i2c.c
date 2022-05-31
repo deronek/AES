@@ -1,7 +1,8 @@
 #include "i2c.h"
+#include "freertos/semphr.h"
 
 // global variables
-
+SemaphoreHandle_t i2c_mutex_handle;
 
 // local variables
 
@@ -10,7 +11,6 @@ static const char *TAG = "i2c";
 // function declarations
 
 // function definitions
-
 
 /**
  * @brief i2c master initialization
@@ -30,6 +30,15 @@ esp_err_t i2c_master_init(void)
 
     ESP_ERROR_CHECK(i2c_param_config(i2c_master_port, &conf));
     ESP_ERROR_CHECK(i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0));
+
+    i2c_mutex_handle = xSemaphoreCreateBinary();
+
+    if (i2c_mutex_handle == NULL)
+    {
+        abort();
+    }
+    xSemaphoreGive(i2c_mutex_handle);
+
     ESP_LOGI(TAG, "I2C initialized successfully");
 
     return ESP_OK;
