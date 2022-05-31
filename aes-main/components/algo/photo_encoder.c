@@ -1,4 +1,4 @@
-#include "photo_encoder.c"
+#include "photo_encoder.h"
 
 #include <math.h>
 
@@ -98,6 +98,6 @@ void photo_encoder_enable_isr()
 
 void photo_encoder_disable_isr()
 {
-    gpio_isr_handler_remove(photo_encoder_l_isr);
-    gpio_isr_handler_remove(photo_encoder_r_isr);
+    gpio_isr_handler_remove(PHOTO_ENCODER_GPIO_PIN_L);
+    gpio_isr_handler_remove(PHOTO_ENCODER_GPIO_PIN_R);
 }

@@ -3,6 +3,8 @@
 #ifndef _PHOTO_ENCODER_H
 #define _PHOTO_ENCODER_H
 
+#include "esp_err.h"
+
 // structs
 typedef struct photo_encoder_distance_type_tag
 {

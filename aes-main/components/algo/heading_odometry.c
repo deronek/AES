@@ -1,5 +1,6 @@
 #include "heading_odometry.h"
 
+#include "photo_encoder.h"
 #include "robot_constants.h"
 
 #include <math.h>
@@ -20,7 +21,7 @@ void heading_odometry_calculate()
 {
     photo_encoder_distance_type distance = photo_encoder_distance;
     distance.left -= distance_old.left;
-    distance_right -= distance_old.right;
+    distance.right -= distance_old.right;
 
     float delta_heading = (distance.left - distance.right) / DISTANCE_BETWEEN_WHEELS;
 

@@ -6,6 +6,7 @@ unsigned long timestamp;
 
 // local variables
 static mpu9255_sensor_data_type mag_bias;
+static bool mpu9255_ble_sending = false;
 
 // sensor data, not exposed
 static mpu9255_fifo_data_type mpu9255_fifo_data;
@@ -30,7 +31,8 @@ static const unsigned char SENSORS = INV_XYZ_GYRO | INV_XYZ_ACCEL | INV_XYZ_COMP
 // function declarations
 
 static void tap_cb(unsigned char, unsigned char);
-static void mpu9255_init_int_pin();
+static void mpu9255_set_isr(bool enabled);
+static void mpu9255_set_ble_sending(bool enabled);
 
 // function definitions
 
@@ -200,6 +202,9 @@ esp_err_t mpu9255_init()
     }
 
     dmp_set_interrupt_mode(DMP_INT_CONTINUOUS);
+    gpio_reset_pin(MPU9255_INT_PIN);
+    gpio_set_direction(MPU9255_INT_PIN, GPIO_MODE_INPUT);
+    gpio_set_intr_type(MPU9255_INT_PIN, GPIO_INTR_POSEDGE);
 
     return ESP_OK;
 }
@@ -207,7 +212,7 @@ esp_err_t mpu9255_init()
 TASK mpu9255_task_measure()
 {
     mpu_reset_fifo();
-    mpu9255_init_int_pin();
+    mpu9255_set_isr(true);
     short sensors;
     unsigned char more;
     int retval;
@@ -247,7 +252,11 @@ TASK mpu9255_task_measure()
 
         xQueueOverwrite(mpu9255_queue_fifo_data, &mpu9255_fifo_data);
         app_manager_algo_task_notify(TASK_FLAG_MPU9255);
-        // app_manager_ble_task_notify(TASK_FLAG_MPU9255);
+
+        if (mpu9255_ble_sending)
+        {
+            app_manager_ble_task_notify(TASK_FLAG_MPU9255);
+        }
 
         /**
          * @todo Implement DMP interrupt - we can be notified when the
@@ -270,10 +279,19 @@ static void IRAM_ATTR mpu9255_isr(void *arg)
     portYIELD_FROM_ISR(higher_priority_task_woken);
 }
 
-void mpu9255_init_int_pin()
+void mpu9255_set_isr(bool enabled)
 {
-    gpio_reset_pin(MPU9255_INT_PIN);
-    gpio_set_direction(MPU9255_INT_PIN, GPIO_MODE_INPUT);
-    gpio_set_intr_type(MPU9255_INT_PIN, GPIO_INTR_POSEDGE);
-    gpio_isr_handler_add(MPU9255_INT_PIN, mpu9255_isr, NULL);
+    if (enabled)
+    {
+        gpio_isr_handler_add(MPU9255_INT_PIN, mpu9255_isr, NULL);
+    }
+    else
+    {
+        gpio_isr_handler_remove(MPU9255_INT_PIN);
+    }
+}
+
+void mpu9255_set_ble_sending(bool enabled)
+{
+    mpu9255_ble_sending = enabled;
 }

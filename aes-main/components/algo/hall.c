@@ -2,6 +2,8 @@
 
 #include "driver/gpio.h"
 
+#include <stdlib.h>
+
 #define HALL_GPIO_PIN GPIO_NUM_15
 
 // global variables
@@ -30,7 +32,7 @@ void hall_enable_isr()
 
 void hall_disable_isr()
 {
-    gpio_isr_handler_remove(hall_isr);
+    gpio_isr_handler_remove(HALL_GPIO_PIN);
 }
 
 bool hall_get_detected()

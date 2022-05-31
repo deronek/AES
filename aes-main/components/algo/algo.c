@@ -1,12 +1,14 @@
 #include "algo.h"
+
 #include "data_receive.h"
 #include "photo_encoder.h"
+#include "hall.h"
 
 // constants
 #define RAD_TO_DEG (180.0 / M_PI)
 #define DEG_TO_RAD (M_PI / 180.0)
 
-#define COMP_FILTER_ALPHA 0.85
+#define COMP_FILTER_ALPHA 0.5
 
 // global variables
 algo_quaternion_type algo_quaternion;
@@ -38,11 +40,13 @@ float thetaHat_rad = 0.0f;
 
 // function declarations
 static void algo_update_quaternion();
+static float algo_low_pass_tick(float xn);
+static float algo_high_pass_tick(float xn);
 
 // function definitions
 void algo_init()
 {
-    hall_init();
+    // hall_init();
     /**
      * @todo Initialize all algo data structures
      */
@@ -63,7 +67,7 @@ void algo_update_quaternion()
 TASK algo_main()
 {
     algo_running = true;
-    photo_encoder_enable_isr();
+    // photo_encoder_enable_isr();
     // get start time of this iteration
     TickType_t last_wake_time = xTaskGetTickCount();
     for (;;)
@@ -80,7 +84,7 @@ TASK algo_main()
         algo_data_receive_get_latest();
 
         // run algo calculations
-        heading_calculate();
+        // heading_calculate();
 
         algo_run();
 
@@ -133,13 +137,13 @@ void algo_run()
 
     // ESP_LOGI(TAG, "%.3f %.3f", phiHat_rad * RAD_TO_DEG, thetaHat_rad * RAD_TO_DEG);
 
-    // algo_update_quaternion();
-    // // yaw
-    // float siny_cosp = 2 * (algo_quaternion.w * algo_quaternion.z +
-    //                        algo_quaternion.x * algo_quaternion.y);
-    // float cosy_cosp = 1 - 2 * (algo_quaternion.y * algo_quaternion.y +
-    //                            algo_quaternion.z * algo_quaternion.z);
-    // algo_euler_angles.yaw = atan2f(siny_cosp, cosy_cosp) * RAD_TO_DEG;
+    algo_update_quaternion();
+    // yaw
+    float siny_cosp = 2 * (algo_quaternion.w * algo_quaternion.z +
+                           algo_quaternion.x * algo_quaternion.y);
+    float cosy_cosp = 1 - 2 * (algo_quaternion.y * algo_quaternion.y +
+                               algo_quaternion.z * algo_quaternion.z);
+    float yaw_quat = atan2f(siny_cosp, cosy_cosp);
 
     // algo_heading_data_type algo_heading;
     // algo_heading.heading = (int16_t)(algo_euler_angles.yaw * 10);
@@ -165,16 +169,49 @@ void algo_run()
     //     algo_euler_angles.pitch = asinf(sinp);
     // }
 
-    // float mag_x = algo_mpu9255_fifo_data.mag.x * 0.6;
-    // float mag_y = algo_mpu9255_fifo_data.mag.y * 0.6;
+    float mag_x = algo_mpu9255_fifo_data.mag.x;
+    float mag_y = algo_mpu9255_fifo_data.mag.y;
     // float mag_z = algo_mpu9255_fifo_data.mag.z * 0.6;
 
-    // // float deg = atan2(mag_y, mag_x) * RAD_TO_DEG;
+    float yaw_mag = atan2f(mag_y, mag_x);
+    float declination = 8.133;
+    yaw_mag += declination;
+
+    float yaw_complimentary = algo_low_pass_tick(yaw_mag) + algo_high_pass_tick(yaw_quat);
+    yaw_complimentary *= RAD_TO_DEG;
+
+    ESP_LOGI(TAG, "Yaw: %.2f", yaw_complimentary);
 
     // float yaw = atanf((-mag_y * cosf(algo_euler_angles.roll) + mag_z * sinf(algo_euler_angles.roll)) / (mag_x * cosf(algo_euler_angles.pitch) + mag_y * sinf(algo_euler_angles.roll) * sinf(algo_euler_angles.pitch) + mag_z * cosf(algo_euler_angles.roll) * sinf(algo_euler_angles.pitch)));
 
     // ESP_LOGI(TAG, "Yaw: %.2f", algo_euler_angles.yaw);
     // ESP_LOGI(TAG, "Mag deg: %.2f", deg);
     // ESP_LOGI(TAG, "Yaw: %.2f", yaw * RAD_TO_DEG);
+
+    // ESP_LOGI(TAG, "Gyro: %hi %hi %hi", algo_mpu9255_fifo_data.gyro.x, algo_mpu9255_fifo_data.gyro.y, algo_mpu9255_fifo_data.gyro.z);
     // ESP_LOGI(TAG, "Mag: %hi %hi %hi", algo_mpu9255_fifo_data.mag.x, algo_mpu9255_fifo_data.mag.y, algo_mpu9255_fifo_data.mag.z);
+}
+
+float algo_high_pass_tick(float xn)
+{
+    static float yn_1 = 0;
+    static float xn_1 = 0;
+
+    float yn = COMP_FILTER_ALPHA * yn_1 + COMP_FILTER_ALPHA * (xn_1 - xn);
+
+    yn_1 = yn;
+    xn_1 = xn;
+
+    return yn;
+}
+
+float algo_low_pass_tick(float xn)
+{
+    static float yn_1 = 0;
+
+    float yn = (1 - COMP_FILTER_ALPHA) * xn + COMP_FILTER_ALPHA * yn_1;
+
+    yn_1 = yn;
+
+    return yn;
 }

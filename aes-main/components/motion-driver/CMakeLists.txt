@@ -1,4 +1,4 @@
-idf_component_register(SRCS "inv_mpu.c" "inv_mpu_dmp_motion_driver.c"
+idf_component_register(SRCS "inv_mpu.c" "inv_mpu_dmp_motion_driver.c" "esp_port.c"
                        INCLUDE_DIRS "include")
 
 if(CONFIG_INV_GYRO_MPU6050)
