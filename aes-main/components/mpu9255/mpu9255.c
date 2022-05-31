@@ -32,7 +32,6 @@ static const unsigned char SENSORS = INV_XYZ_GYRO | INV_XYZ_ACCEL | INV_XYZ_COMP
 
 static void tap_cb(unsigned char, unsigned char);
 static void mpu9255_set_isr(bool enabled);
-static void mpu9255_set_ble_sending(bool enabled);
 
 // function definitions
 
@@ -115,6 +114,9 @@ void mpu9255_calibrate()
 
     mpu_set_gyro_bias_reg(gyro_bias);
     mpu_set_accel_bias_6500_reg(accel_bias);
+
+    // dmp_set_gyro_bias(gyro_bias);
+    // dmp_set_accel_bias(accel_bias);
 }
 
 esp_err_t mpu9255_init()
@@ -146,7 +148,8 @@ esp_err_t mpu9255_init()
      *
      * DMP sensor fusion works only with gyro at +-2000dps and accel +-2G
      */
-    ESP_ERROR_CHECK(dmp_enable_feature(DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_RAW_GYRO));
+    // ESP_ERROR_CHECK(dmp_enable_gyro_cal(1));
+    ESP_ERROR_CHECK(dmp_enable_feature(DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_RAW_GYRO | DMP_FEATURE_GYRO_CAL));
 
     // register empty tap callback
     ESP_ERROR_CHECK(dmp_register_tap_cb(tap_cb));

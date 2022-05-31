@@ -55,5 +55,6 @@ extern unsigned long timestamp;
 esp_err_t mpu9255_init();
 void mpu9255_calibrate();
 TASK mpu9255_task_measure();
+void mpu9255_set_ble_sending(bool enabled);
 
 #endif
