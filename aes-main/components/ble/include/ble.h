@@ -32,5 +32,6 @@ extern TaskHandle_t ble_spp_task_handle;
 void ble_init();
 bool ble_is_connected();
 TASK ble_main();
+TASK ble_heartbeat();
 
 #endif

@@ -145,13 +145,6 @@ void algo_run()
                                algo_quaternion.z * algo_quaternion.z);
     float yaw_quat = atan2f(siny_cosp, cosy_cosp);
 
-    // algo_heading_data_type algo_heading;
-    // algo_heading.heading = (int16_t)(algo_euler_angles.yaw * 10);
-    // // ESP_LOGI(TAG, "%d", algo_heading.heading);
-
-    // xQueueOverwrite(algo_heading_data_queue, &algo_heading);
-    // app_manager_ble_task_notify(TASK_FLAG_ALGO);
-
     // // roll
     // float sinr_cosp = 2 * (algo_quaternion.w * algo_quaternion.x + algo_quaternion.y * algo_quaternion.z);
     // float cosr_cosp = 1 - 2 * (algo_quaternion.x * algo_quaternion.x + algo_quaternion.y * algo_quaternion.y);
@@ -169,18 +162,27 @@ void algo_run()
     //     algo_euler_angles.pitch = asinf(sinp);
     // }
 
-    float mag_x = algo_mpu9255_fifo_data.mag.x;
-    float mag_y = algo_mpu9255_fifo_data.mag.y;
-    // float mag_z = algo_mpu9255_fifo_data.mag.z * 0.6;
+    // float mag_x = algo_mpu9255_fifo_data.mag.x;
+    // float mag_y = algo_mpu9255_fifo_data.mag.y;
 
-    float yaw_mag = atan2f(mag_y, mag_x);
-    float declination = 8.133;
-    yaw_mag += declination;
+    // float yaw_mag = atan2f(mag_y, mag_x);
+    // float declination = 8.133 * DEG_TO_RAD;
+    // yaw_mag += declination;
 
-    float yaw_complimentary = algo_low_pass_tick(yaw_mag) + algo_high_pass_tick(yaw_quat);
-    yaw_complimentary *= RAD_TO_DEG;
+    // float yaw_complimentary = algo_low_pass_tick(yaw_mag) + algo_high_pass_tick(yaw_quat);
+    // yaw_complimentary *= RAD_TO_DEG;
 
-    ESP_LOGI(TAG, "Yaw: %.2f", yaw_complimentary);
+    // ESP_LOGI(TAG, "Yaw: %.2f", yaw_complimentary);
+
+    yaw_quat *= RAD_TO_DEG;
+
+    algo_heading_data_type algo_heading;
+    algo_heading.heading = (int16_t)(yaw_quat * 10);
+    // ESP_LOGI(TAG, "%d", algo_heading.heading);
+
+    xQueueOverwrite(algo_heading_data_queue, &algo_heading);
+    app_manager_ble_task_notify(TASK_FLAG_ALGO);
+    // ESP_LOGI(TAG, "Yaw quat: %.2f", yaw_quat);
 
     // float yaw = atanf((-mag_y * cosf(algo_euler_angles.roll) + mag_z * sinf(algo_euler_angles.roll)) / (mag_x * cosf(algo_euler_angles.pitch) + mag_y * sinf(algo_euler_angles.roll) * sinf(algo_euler_angles.pitch) + mag_z * cosf(algo_euler_angles.roll) * sinf(algo_euler_angles.pitch)));
 

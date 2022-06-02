@@ -18,13 +18,15 @@ TaskHandle_t app_manager_algo_task_handle,
     app_manager_mpu9255_task_handle,
     app_manager_main_task_handle,
     app_manager_hc_sr04_task_handle,
-    app_manager_ble_task_handle;
+    app_manager_ble_main_task_handle,
+    app_manager_ble_heartbeat_task_handle;
 
 // function declarations
 static void app_manager_run();
 static void app_manager_update_state();
 static void app_manager_init_peripherals();
-static void app_manager_create_ble_task();
+static void app_manager_create_ble_main_task();
+static void app_manager_create_ble_heartbeat_task();
 static void app_manager_create_sensor_tasks();
 static void app_manager_create_main_task();
 static void app_manager_create_algo_task();
@@ -47,7 +49,8 @@ TASK app_manager_init()
 
     ESP_LOGI(TAG, "Core ID: %d", xPortGetCoreID());
     app_manager_init_peripherals();
-    // app_manager_create_ble_task();
+    app_manager_create_ble_main_task();
+    app_manager_create_ble_heartbeat_task();
     app_manager_create_sensor_tasks();
     app_manager_create_main_task();
 
@@ -64,10 +67,10 @@ void app_manager_init_peripherals()
     i2c_master_init();
     mpu9255_init();
     // hc_sr04_init();
-    // ble_init();
+    ble_init();
 }
 
-void app_manager_create_ble_task()
+void app_manager_create_ble_main_task()
 {
     task_utils_create_task(
         ble_main,
@@ -75,7 +78,19 @@ void app_manager_create_ble_task()
         4096,
         NULL,
         3,
-        &app_manager_ble_task_handle,
+        &app_manager_ble_main_task_handle,
+        0);
+}
+
+void app_manager_create_ble_heartbeat_task()
+{
+    task_utils_create_task(
+        ble_heartbeat,
+        "ble_heartbeat",
+        2048,
+        NULL,
+        3,
+        &app_manager_ble_heartbeat_task_handle,
         0);
 }
 
@@ -164,13 +179,31 @@ TASK app_manager_main()
     vTaskPrioritySet(NULL, 2);
     for (;;)
     {
-        vTaskDelay(pdMS_TO_TICKS(10000));
+        vTaskDelay(pdMS_TO_TICKS(20000));
+        // unsigned char regs[12];
+        // mpu_read_mem((61 * 16), 4, regs);
+        // long x_bias = (regs[0] << 24) | (regs[1] << 16) | (regs[2] << 8) | regs[3];
+        // long y_bias = (regs[4] << 24) | (regs[5] << 16) | (regs[6] << 8) | regs[7];
+        // long z_bias = (regs[8] << 24) | (regs[9] << 16) | (regs[10] << 8) | regs[11];
+        // ESP_LOGI(TAG, "X: %li, Y: %li, Z: %li", x_bias, y_bias, z_bias);
+
+        // short raw_gyro[3];
+        // mpu_get_gyro_reg(raw_gyro, NULL);
+        // ESP_LOGI(TAG, "Raw gyro: %d %d %d", raw_gyro[0], raw_gyro[1], raw_gyro[2]);
+
+        // short cal_gyro[3];
+        // mpu9255_fifo_data_type fifo;
+        // xQueuePeek(mpu9255_queue_fifo_data, &fifo, 0);
+        // ESP_LOGI(TAG, "Gyro from FIFO: %d %d %d", fifo.gyro.x, fifo.gyro.y, fifo.gyro.z);
+
+        // abort();
+
         // size_t size = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
         // printf("%d\n", size);
 
         // print high water mark of tasks stacks
         // UBaseType_t highmark_ble_spp = uxTaskGetStackHighWaterMark(ble_spp_task_handle);
-        // UBaseType_t highmark_ble = uxTaskGetStackHighWaterMark(app_manager_ble_task_handle);
+        // UBaseType_t highmark_ble = uxTaskGetStackHighWaterMark(app_manager_ble_main_task_handle);
         // UBaseType_t highmark_mpu9255 = uxTaskGetStackHighWaterMark(app_manager_mpu9255_task_handle);
         // UBaseType_t highmark_main = uxTaskGetStackHighWaterMark(app_manager_main_task_handle);
         // UBaseType_t highmark_algo = uxTaskGetStackHighWaterMark(app_manager_algo_task_handle);
@@ -267,6 +300,6 @@ void app_manager_ble_task_notify(app_manager_task_flag_type task_flag)
 {
     if (ble_is_connected())
     {
-        app_manager_task_notify(app_manager_ble_task_handle, task_flag);
+        app_manager_task_notify(app_manager_ble_main_task_handle, task_flag);
     }
 }
