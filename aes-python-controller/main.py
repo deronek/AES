@@ -1,3 +1,4 @@
+import os
 import asyncio
 from threading import Thread
 
@@ -11,8 +12,9 @@ import pygame_widgets
 
 import ctypes
 
-# fix scaling
-ctypes.windll.user32.SetProcessDPIAware()
+# fix scaling on Windows
+if os.name == 'nt':
+    ctypes.windll.user32.SetProcessDPIAware()
 
 
 from buttons import draw_buttons, init_buttons
@@ -32,7 +34,8 @@ from connection_status import draw_connection_status
 from radar import draw_radar
 
 WIDTH, HEIGHT = 1920, 1080
-WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+# WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+WIN = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.display.set_caption("AES Controller")
 
 BORDER = pygame.Rect(WIDTH // 2 - 5, 0, 10, HEIGHT)
@@ -70,7 +73,6 @@ class AESController:
         run = True
         init_buttons()
         clock = pygame.time.Clock()
-        clock.tick(FPS)
         while run:
             events = pygame.event.get()
             for event in events:
@@ -80,6 +82,7 @@ class AESController:
                         pygame.quit()
 
             self.draw_window(events)
+            clock.tick(FPS)
             # loop.call_soon(self.pygame_task)
         # loop.run_forever()
         quit()
