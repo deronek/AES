@@ -66,7 +66,7 @@ static const uint16_t primary_service_uuid = ESP_GATT_UUID_PRI_SERVICE;
 static const uint16_t character_declaration_uuid = ESP_GATT_UUID_CHAR_DECLARE;
 
 static const uint8_t char_prop_control_indication = ESP_GATT_CHAR_PROP_BIT_INDICATE | ESP_GATT_CHAR_PROP_BIT_WRITE;
-static const uint8_t char_prop_data_notification = ESP_GATT_CHAR_PROP_BIT_NOTIFY | ESP_GATT_CHAR_PROP_BIT_WRITE_NR;
+static const uint8_t char_prop_data_notification = ESP_GATT_CHAR_PROP_BIT_NOTIFY;
 static const uint8_t char_prop_heartbeat = ESP_GATT_CHAR_PROP_BIT_INDICATE | ESP_GATT_CHAR_PROP_BIT_WRITE;
 
 /// SPP Service - data receive characteristic, read&write without response
@@ -75,7 +75,7 @@ static const uint8_t ble_ctrl_val[BLE_CTRL_MAX_LEN] = {0x00};
 
 /// SPP Service - data notify characteristic, notify&read
 static const uint16_t ble_data_uuid = ESP_GATT_UUID_DATA_NOTIFICATION;
-static const uint8_t ble_data_val[512] = {0x00};
+static const uint8_t ble_data_val[BLE_DATA_MAX_LEN] = {0x00};
 
 /// SPP Server - Heart beat characteristic, notify&write&read
 static const uint16_t ble_heartbeat_uuid = ESP_GATT_UUID_HEARTBEAT;
@@ -412,6 +412,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         heartbeat_count_num = 0;
         break;
     case ESP_GATTS_DISCONNECT_EVT:
+        ESP_LOGW(TAG, "Disconnecting client");
         is_connected = false;
         heartbeat_count_num = 0;
         esp_ble_gap_start_advertising(&spp_adv_params);
@@ -593,7 +594,7 @@ TASK ble_heartbeat()
             heartbeat_count_num++;
             if (heartbeat_count_num > 3)
             {
-                ESP_LOGW(TAG, "Heartbeat timeout, disconnecting client");
+                ESP_LOGW(TAG, "Heartbeat timeout");
                 esp_ble_gap_disconnect(spp_remote_bda);
             }
         }
