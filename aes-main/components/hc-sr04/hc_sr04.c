@@ -4,19 +4,18 @@
 /**
  * @brief Time to wait after every measurement (to decrease probability of inter-sensor disruptions)
  */
-#define MEASUREMENT_DELAY_TIME pdMS_TO_TICKS(500)
-#define HC_SR04_TIMEOUT pdMS_TO_TICKS(100)
+#define MEASUREMENT_DELAY_TIME pdMS_TO_TICKS(10)
+#define HC_SR04_TIMEOUT pdMS_TO_TICKS(50)
 
 #define NUMBER_OF_TRIG_PINS (NUMBER_OF_HC_SR04_SENSORS / 2)
 #define NUMBER_OF_ECHO_PINS 2
-#define NUMBER_OF_HC_SR04_PAIRS (NUMBER_OF_HC_SR04_SENSORS / 2)
 
-#define RMT_TX_CHANNEL 1            /* RMT channel for transmitter */
-#define RMT_TX_GPIO_NUM PIN_TRIGGER /* GPIO number for transmitter signal */
-#define RMT_RX_CHANNEL 0            /* RMT channel for receiver */
-#define RMT_RX_GPIO_NUM PIN_ECHO    /* GPIO number for receiver */
-#define RMT_CLK_DIV 100             /* RMT counter clock divider */
-#define RMT_TX_CARRIER_EN 0         /* Disable carrier */
+#define RMT_TX_CHANNEL 1 /* RMT channel for transmitter */
+// #define RMT_TX_GPIO_NUM PIN_TRIGGER /* GPIO number for transmitter signal */
+#define RMT_RX_CHANNEL 0 /* RMT channel for receiver */
+// #define RMT_RX_GPIO_NUM PIN_ECHO    /* GPIO number for receiver */
+#define RMT_CLK_DIV 100     /* RMT counter clock divider */
+#define RMT_TX_CARRIER_EN 0 /* Disable carrier */
 /**
  * @todo fix this time
  *
@@ -43,7 +42,7 @@ typedef struct hc_sr04_gpio_type_tag
 
 static const char *TAG = "hc_sr04";
 
-QueueHandle_t hc_sr04_queue_data;
+static QueueHandle_t hc_sr04_queue_data;
 
 // local sensor data
 hc_sr04_data_type hc_sr04_data;
@@ -69,19 +68,25 @@ uint8_t hc_sr04_echo_pins[NUMBER_OF_ECHO_PINS] = {
  */
 uint32_t hc_sr04_distance_offset[NUMBER_OF_HC_SR04_SENSORS] = {
     0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     0};
 
 RingbufHandle_t hc_sr04_rb_handles[NUMBER_OF_ECHO_PINS];
 
-hc_sr04_gpio_type hc_sr04_gpio[NUMBER_OF_HC_SR04_SENSORS] = {{GPIO_NUM_25, GPIO_NUM_26}, {GPIO_NUM_25, GPIO_NUM_33}};
+// hc_sr04_gpio_type hc_sr04_gpio[NUMBER_OF_HC_SR04_SENSORS] = {{GPIO_NUM_25, GPIO_NUM_26}, {GPIO_NUM_25, GPIO_NUM_33}};
 
 /**
  * @brief Pairs of HC-SR04 sensors which should be polled simultaneously.
  * Indexed from 0 to NUMBER_OF_HC_SR04_SENSORS - 1.
  * @todo Move all of this setup from hardcoded to ESP-IDF configuration.
  */
-hc_sr04_pair_type hc_sr04_pairs[NUMBER_OF_HC_SR04_PAIRS] = {
-    {0, 1}};
+// hc_sr04_pair_type hc_sr04_pairs[NUMBER_OF_HC_SR04_PAIRS] = {
+//     {0, 1}};
 
 static uint64_t sensor0_start, sensor0_end, sensor1_start, sensor1_end;
 static bool sensor0_done, sensor1_done;
@@ -115,6 +120,7 @@ void hc_sr04_init()
 
         gpio_reset_pin(pin);
         gpio_set_direction(pin, GPIO_MODE_OUTPUT);
+        gpio_set_pull_mode(pin, GPIO_FLOATING);
 
         ESP_LOGI(TAG, "Initialized trig pin at GPIO %d", pin);
     }
@@ -185,6 +191,11 @@ void hc_sr04_init()
     /**
      * @brief Construct data queue
      */
+    // hc_sr04_queue_data = malloc(sizeof(QueueHandle_t));
+    // if (hc_sr04_queue_data == NULL)
+    // {
+    //     abort();
+    // }
     if ((hc_sr04_queue_data = xQueueCreate(1, sizeof(hc_sr04_data_type))) == NULL)
     {
         abort();
@@ -194,7 +205,11 @@ void hc_sr04_init()
 TASK hc_sr04_measure()
 {
     size_t rx_size = 0;
-    rmt_item32_t *data[NUMBER_OF_ECHO_PINS];
+    // ESP_LOGI(TAG, "RB data %p %p", (void *)data, (void *)(&data));
+
+    // ESP_LOGI(TAG, "Handles %p", &hc_sr04_rb_handles);
+    // ESP_LOGI(TAG, "Queue %p", &hc_sr04_queue_data);
+    // ESP_LOGI(TAG, "Data %p", &hc_sr04_data);
 
     for (;;)
     {
@@ -214,6 +229,7 @@ TASK hc_sr04_measure()
          */
         for (int trig = 0; trig < NUMBER_OF_TRIG_PINS; ++trig)
         {
+            // ESP_LOGI(TAG, "Trig %d", trig);
             /**
              * @brief We won't use TX channel of RMT, because it only
              * has 8 channels and we will probably need eight different
@@ -222,6 +238,11 @@ TASK hc_sr04_measure()
             uint8_t trig_pin = hc_sr04_trig_pins[trig];
             // rmt_write_items(RMT_TX_CHANNEL, &item, 1, true);
             // rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY);
+            /**
+             * @todo Do we really want to start the RX here? Maybe before sending
+             * trigger?
+             */
+
             gpio_set_level(trig_pin, 1);
             /**
              * @todo Change this delay to actually 10 us if possible.
@@ -231,20 +252,16 @@ TASK hc_sr04_measure()
             vTaskDelay(pdMS_TO_TICKS(1));
             gpio_set_level(trig_pin, 0);
 
-            /**
-             * @todo Do we really want to start the RX here? Maybe before sending
-             * trigger?
-             */
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
                 rmt_rx_start(echo, 1);
             }
-
             /**
              * @todo We wait for the first item to receive, then we attempt to receive the second.
              * There probably is not way to optimize this, since we do not want to move forward until
              * both sensor data are received (or timeout happens).
              */
+            rmt_item32_t *data[NUMBER_OF_ECHO_PINS];
             TickType_t ticks_to_wait = HC_SR04_TIMEOUT;
             TickType_t start = xTaskGetTickCount();
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
@@ -277,12 +294,13 @@ TASK hc_sr04_measure()
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
                 size_t measurement_index = echo + trig * NUMBER_OF_TRIG_PINS;
-                ESP_LOGI(TAG, "index %d", measurement_index);
+                // ESP_LOGI(TAG, "index %d", measurement_index);
                 if (data[echo])
                 {
                     uint32_t distance = hc_sr04_calculate_distance(data[echo]->duration0) - hc_sr04_distance_offset[measurement_index];
                     vRingbufferReturnItem(hc_sr04_rb_handles[echo], (void *)data[echo]);
 
+                    // ESP_LOGI(TAG, "Distance %d", distance);
                     hc_sr04_data.distance[measurement_index] = distance;
                 }
                 else
@@ -297,9 +315,14 @@ TASK hc_sr04_measure()
         }
         // ESP_LOGI(TAG, "Sending data to queue");
         // ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
+        // ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
+        //          hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
+
         ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
+
+        // ESP_LOGI(TAG, "Queue address %p", hc_sr04_queue_data);
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);
-        app_manager_algo_task_notify(TASK_FLAG_HC_SR04);
-        app_manager_ble_task_notify(TASK_FLAG_HC_SR04);
+        // app_manager_algo_task_notify(TASK_FLAG_HC_SR04);
+        // app_manager_ble_task_notify(TASK_FLAG_HC_SR04);
     }
 }

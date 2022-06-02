@@ -49,8 +49,8 @@ TASK app_manager_init()
 
     ESP_LOGI(TAG, "Core ID: %d", xPortGetCoreID());
     app_manager_init_peripherals();
-    app_manager_create_ble_main_task();
-    app_manager_create_ble_heartbeat_task();
+    // app_manager_create_ble_main_task();
+    // app_manager_create_ble_heartbeat_task();
     app_manager_create_sensor_tasks();
     app_manager_create_main_task();
 
@@ -64,10 +64,10 @@ TASK app_manager_init()
 
 void app_manager_init_peripherals()
 {
-    i2c_master_init();
-    mpu9255_init();
-    // hc_sr04_init();
-    ble_init();
+    // i2c_master_init();
+    // mpu9255_init();
+    hc_sr04_init();
+    // ble_init();
 }
 
 void app_manager_create_ble_main_task()
@@ -101,26 +101,26 @@ void app_manager_create_sensor_tasks()
      * @brief MPU9255 sensor task
      */
 
-    task_utils_create_task(
-        mpu9255_task_measure,
-        "mpu9255_task_measure",
-        2048,
-        NULL,
-        5,
-        &app_manager_mpu9255_task_handle,
-        0);
+    // task_utils_create_task(
+    //     mpu9255_task_measure,
+    //     "mpu9255_task_measure",
+    //     2048,
+    //     NULL,
+    //     5,
+    //     &app_manager_mpu9255_task_handle,
+    //     0);
 
     /**
      * @brief HC-SR04 sensors task
      */
-    // task_utils_create_task(
-    //     hc_sr04_measure,
-    //     "hc_sr04_measure",
-    //     2048,
-    //     NULL,
-    //     4,
-    //     &app_manager_hc_sr04_task_handle,
-    //     1);
+    task_utils_create_task(
+        hc_sr04_measure,
+        "hc_sr04_measure",
+        20000,
+        NULL,
+        4,
+        &app_manager_hc_sr04_task_handle,
+        1);
 }
 
 void app_manager_create_main_task()
@@ -164,19 +164,19 @@ TASK app_manager_main()
     //     // vTaskDelay(pdMS_TO_TICKS(5000));
     //     task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     // }
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    // vTaskDelay(pdMS_TO_TICKS(5000));
 
     // // set priority to high
     // UBaseType_t old_priority = uxTaskPriorityGet(NULL);
     // vTaskPrioritySet(NULL, 10);
 
-    mpu9255_calibrate();
-    algo_init();
-    app_manager_create_algo_task();
-    app_manager_state = APP_MANAGER_DRIVING;
+    // mpu9255_calibrate();
+    // algo_init();
+    // app_manager_create_algo_task();
+    // app_manager_state = APP_MANAGER_DRIVING;
 
     // set priority back to low
-    vTaskPrioritySet(NULL, 2);
+    // vTaskPrioritySet(NULL, 2);
     for (;;)
     {
         vTaskDelay(pdMS_TO_TICKS(20000));
