@@ -1,5 +1,7 @@
 #include "app_manager.h"
 
+#include "driver/gpio.h"
+
 // constants
 #define TASK_TICK_PERIOD pdMS_TO_TICKS(100)
 
@@ -30,6 +32,7 @@ static void app_manager_create_ble_heartbeat_task();
 static void app_manager_create_sensor_tasks();
 static void app_manager_create_main_task();
 static void app_manager_create_algo_task();
+static void app_manager_task_notify();
 
 // function definitions
 inline static void log_abort_wrong_state(const char *state)
@@ -37,7 +40,7 @@ inline static void log_abort_wrong_state(const char *state)
     ESP_LOGE(TAG, "app_manager_state == %s in main loop", state);
     abort();
 }
-inline static void app_manager_task_notify(xTaskHandle task_handle, app_manager_task_flag_type task_flag)
+static void app_manager_task_notify(TaskHandle_t task_handle, app_manager_task_flag_type task_flag)
 {
     xTaskNotify(task_handle, task_flag, eSetBits);
 }

@@ -42,7 +42,7 @@ typedef struct hc_sr04_gpio_type_tag
 
 static const char *TAG = "hc_sr04";
 
-static QueueHandle_t hc_sr04_queue_data;
+QueueHandle_t hc_sr04_queue_data;
 
 // local sensor data
 hc_sr04_data_type hc_sr04_data;

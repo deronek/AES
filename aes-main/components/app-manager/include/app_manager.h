@@ -4,8 +4,6 @@
 #define _APP_MANAGER_H
 
 #include "esp_err.h"
-#include "driver/gpio.h"
-#include "driver/timer.h"
 
 #include "math.h"
 
