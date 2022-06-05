@@ -1,4 +1,5 @@
 import pygame
+
 pygame.font.init()
 pygame.mixer.init()
 from threading import Thread
@@ -18,17 +19,15 @@ import ctypes
 import pygame_widgets
 from ble import BLE
 
-
-
 # fix scaling on Windows
 if os.name == 'nt':
     ctypes.windll.user32.SetProcessDPIAware()
 
-
 WIDTH, HEIGHT = 1920, 1080
-# WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+# WIN = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN | pygame.DOUBLEBUF, 8)
 WIN = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.display.set_caption("AES Controller")
+pygame.event.set_allowed([pygame.QUIT])
 
 BORDER = pygame.Rect(WIDTH // 2 - 5, 0, 10, HEIGHT)
 
@@ -38,13 +37,15 @@ BORDER = pygame.Rect(WIDTH // 2 - 5, 0, 10, HEIGHT)
 
 FPS = 30
 
+
 # os.environ['PYTHONASYNCIODEBUG'] = '1'
 
 
 class AESController:
     async def draw_window(self):
+        self.handle_events()
         # WIN.fill(BLACK)
-        #distance = [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
+        # distance = [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
         distance = await self.ble.hc_sr04.get_data()
         # distance = []
         WIN.blit(draw_radar(distance.distance), (37, 137))
@@ -57,7 +58,10 @@ class AESController:
         # pygame_widgets.update(events)
         pygame.display.update()
 
-    def pygame_task(self):
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                break
         pass
 
     async def pygame_loop(self):
@@ -68,23 +72,23 @@ class AESController:
             await asyncio.sleep(1 / FPS - (current_time - last_time))  # tick
             await self.draw_window()
 
-    async def handle_events(self, event_queue):
-        while True:
-            await asyncio.sleep(0)
-            event = await event_queue.get()
-            if event.type == pygame.QUIT:
-                break
-            else:
-                pass
-                # print("event", event)
-        asyncio.get_event_loop().stop()
+    # async def handle_events(self, event_queue):
+    #     while True:
+    #         await asyncio.sleep(0)
+    #         event = await event_queue.get()
+    #         if event.type == pygame.QUIT:
+    #             break
+    #         else:
+    #             pass
+    #             # print("event", event)
+    #     asyncio.get_event_loop().stop()
 
-    async def pygame_event_loop(self, event_queue):
-        while True:
-            await asyncio.sleep(0)
-            event = pygame.event.poll()
-            if event.type != pygame.NOEVENT:
-                await event_queue.put(event)
+    # async def pygame_event_loop(self, event_queue):
+    #     while True:
+    #         await asyncio.sleep(0)
+    #         event = pygame.event.poll()
+    #         if event.type != pygame.NOEVENT:
+    #             await event_queue.put(event)
 
     def exception_handler(self, task):
         try:
@@ -108,12 +112,11 @@ class AESController:
         # ble_thread.start()
 
         # pygame_event_task = asyncio.ensure_future(
-            # self.pygame_event_loop(event_queue), loop=loop)
+        #     self.pygame_event_loop(event_queue), loop=loop)
         pygame_main_task = asyncio.ensure_future(self.pygame_loop(), loop=loop)
         # event_task = asyncio.ensure_future(
-            # self.handle_events(event_queue), loop=loop)
+        #     self.handle_events(event_queue), loop=loop)
         ble_task = asyncio.ensure_future(self.ble.main(), loop=loop)
-        
 
         # pygame_event_task.add_done_callback(self.exception_handler)
         pygame_main_task.add_done_callback(self.exception_handler)
