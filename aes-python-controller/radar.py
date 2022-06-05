@@ -62,9 +62,9 @@ class RadarMarkers:
 
     def add(self, angle, distance: float):
         angle_radians = math.radians(angle)
-        radius = RADAR_RADIUS * distance/100000
+        radius = RADAR_RADIUS * distance/10000000
         marker = RadarMarker((-math.cos(angle_radians) * radius, math.sin(angle_radians) * radius, 1000, 1000),
-                             math.radians(angle - (22.5 * (1 - distance/100000))), math.radians(angle))
+                             math.radians(angle - (22.5 * (1 - distance/10000000))), math.radians(angle))
         self.markers_list.append(marker)
 
     def draw(self):

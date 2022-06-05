@@ -45,7 +45,7 @@ class HcSr04(LockedData):
             self.distance = []
             for i in range(NUMBER_OF_HC_SR04_SENSORS):
                 self.distance.append(int.from_bytes(
-                    data[i * 4, i * 4 + 4],
+                    data[i * 4 : i * 4 + 4],
                     byteorder='little'))
 
     data: list
@@ -79,7 +79,7 @@ ESP_GATT_UUID_CTRL_INDICATION = "0000abf1-0000-1000-8000-00805f9b34fb"
 ESP_GATT_UUID_DATA_NOTIFICATION = "0000abf2-0000-1000-8000-00805f9b34fb"
 ESP_GATT_UUID_HEARTBEAT = "0000abf5-0000-1000-8000-00805f9b34fb"
 
-HEARTBEAT_STRING = 'AES-2022'
+HEARTBEAT_STRING = 'AES-2022'.encode()
 
 ################################ read MAC adress ##############################################
 # async def main():
@@ -121,11 +121,11 @@ class BLE:
             if len(self.data) != self.data_len:
                 raise ValueError(f'Incorrect data length, {len(self.data)=}, {self.data_len=}')
 
-    def callback(self, sender: int, data: bytearray):
+    async def callback(self, sender: int, data: bytearray):
         try:
             print('packet')
             packet = BLE.BlePacket(data)
-            self.save_packet(packet)
+            await self.save_packet(packet)
         except KeyError:
             print(f'Unrecognized packet ID, got {data[0]}')
 
@@ -139,12 +139,13 @@ class BLE:
     async def main(self, address=ADDRESS):
         async with BleakClient(address) as client:
             await client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
-            # while True:
-            #     await client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
-            #     await asyncio.sleep(1)
+            while True:
+                await client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
+                # time.sleep(1)
+                await asyncio.sleep(1)
             # send heartbeat every 1 second
             #     time.sleep(1)
-            await asyncio.Event().wait()
+            # await asyncio.Event().wait()
             # while True:
             #     await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, callback)
 

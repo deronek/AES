@@ -47,6 +47,10 @@ address = "E8:31:CD:C4:76:62"
 # address = "3C:61:05:30:8B:4A"
 ESP_GATT_UUID_SPP_DATA_NOTIFY = "0000abf2-0000-1000-8000-00805f9b34fb"
 ESP_GATT_UUID_SPP_DATA_RECEIVE = "0000abf1-0000-1000-8000-00805f9b34fb"
+ESP_GATT_UUID_HEARTBEAT = "0000abf5-0000-1000-8000-00805f9b34fb"
+
+HEARTBEAT_STRING = 'AES-2022'.encode()
+
 
 ############################### read MAC adress ##############################################
 # async def main():
@@ -76,6 +80,10 @@ class BLE():
     async def main(self, address):
         async with BleakClient(address) as client:
             await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, self.callback)
+            while True:
+                await client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
+                # time.sleep(1)
+                await asyncio.sleep(1)
             # while True:
             #     await asyncio.sleep(1)
             # while True:
@@ -98,14 +106,14 @@ class BLE():
 # asyncio.run(main(address))
 
 # ############################################## read UUID adress ##################################
-async def main(address: str):
-     async with BleakClient(address) as client:
-         svcs = await client.get_services()
-         print("Services:")
-         for service in svcs:
-             print(service)
-asyncio.run(main(address))
+# async def main(address: str):
+#      async with BleakClient(address) as client:
+#          svcs = await client.get_services()
+#          print("Services:")
+#          for service in svcs:
+#              print(service)
+# asyncio.run(main(address))
 
-# if __name__ == "__main__":
-#     ble = BLE()
-#     asyncio.run(ble.main(address))
+if __name__ == "__main__":
+    ble = BLE()
+    asyncio.run(ble.main(address))
