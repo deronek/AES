@@ -1,5 +1,6 @@
 #include "hall.h"
 
+#include "esp_attr.h"
 #include "driver/gpio.h"
 
 #include <stdlib.h>

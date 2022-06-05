@@ -5,9 +5,6 @@
 
 #include "esp_err.h"
 #include "esp_log.h"
-#include "driver/gpio.h"
-#include "driver/timer.h"
-#include "driver/rmt.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -19,7 +16,7 @@
 
 // constants
 
-#define NUMBER_OF_HC_SR04_SENSORS 4
+#define NUMBER_OF_HC_SR04_SENSORS 8
 
 #define HC_SR04_INIT_VALUE 0
 

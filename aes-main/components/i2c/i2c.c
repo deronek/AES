@@ -1,4 +1,7 @@
 #include "i2c.h"
+
+#include "driver/i2c.h"
+#include "driver/gpio.h"
 #include "freertos/semphr.h"
 
 // global variables
