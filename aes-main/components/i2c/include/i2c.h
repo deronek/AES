@@ -5,8 +5,6 @@
 
 #include "esp_err.h"
 #include "esp_log.h"
-#include "driver/gpio.h"
-#include "driver/i2c.h"
 
 #include "math.h"
 

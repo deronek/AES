@@ -1,6 +1,6 @@
 idf_component_register(SRCS "inv_mpu.c" "inv_mpu_dmp_motion_driver.c" "esp_port.c"
                        INCLUDE_DIRS "include"
-                       REQUIRES i2c)
+                       REQUIRES i2c driver)
 
 if(CONFIG_INV_GYRO_MPU6050)
     add_compile_definitions(MPU6050)

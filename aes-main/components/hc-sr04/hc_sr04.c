@@ -1,11 +1,12 @@
 #include "hc_sr04.h"
+#include "driver/rmt.h"
 
 // constants
 /**
  * @brief Time to wait after every measurement (to decrease probability of inter-sensor disruptions)
  */
 #define MEASUREMENT_DELAY_TIME pdMS_TO_TICKS(10)
-#define HC_SR04_TIMEOUT pdMS_TO_TICKS(50)
+#define HC_SR04_TIMEOUT pdMS_TO_TICKS(80)
 
 #define NUMBER_OF_TRIG_PINS (NUMBER_OF_HC_SR04_SENSORS / 2)
 #define NUMBER_OF_ECHO_PINS 2
@@ -42,7 +43,7 @@ typedef struct hc_sr04_gpio_type_tag
 
 static const char *TAG = "hc_sr04";
 
-static QueueHandle_t hc_sr04_queue_data;
+QueueHandle_t hc_sr04_queue_data;
 
 // local sensor data
 hc_sr04_data_type hc_sr04_data;
@@ -55,7 +56,9 @@ hc_sr04_data_type hc_sr04_data;
 
 uint8_t hc_sr04_trig_pins[NUMBER_OF_TRIG_PINS] = {
     GPIO_NUM_33,
-    GPIO_NUM_25};
+    GPIO_NUM_25,
+    GPIO_NUM_26,
+    GPIO_NUM_27};
 
 uint8_t hc_sr04_echo_pins[NUMBER_OF_ECHO_PINS] = {
     GPIO_NUM_14,
@@ -75,6 +78,21 @@ uint32_t hc_sr04_distance_offset[NUMBER_OF_HC_SR04_SENSORS] = {
     0,
     0,
     0};
+
+/**
+ * @brief Mapping of sensor indexes (starting from the left).
+ */
+#define HC_SR04_MAP_SENSORS
+uint8_t hc_sr04_sensor_mapping[NUMBER_OF_HC_SR04_SENSORS] = {
+    0, // 1st
+    4, // 5th
+    1, // 2nd
+    5, // 6th
+    2, // 3rd
+    6, // 7th
+    3, // 4th
+    7, // 8th
+};
 
 RingbufHandle_t hc_sr04_rb_handles[NUMBER_OF_ECHO_PINS];
 
@@ -150,7 +168,7 @@ void hc_sr04_init()
 
         rmt_get_ringbuf_handle(i, &(hc_sr04_rb_handles[i]));
 
-        ESP_LOGI(TAG, "Initialized echo pin at GPIO %d", pin);
+        ESP_LOGI(TAG, "Initialized echo pin at GPIO %d, RB handle: %p", pin, hc_sr04_rb_handles[i]);
     }
 
     // for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
@@ -261,12 +279,23 @@ TASK hc_sr04_measure()
              * There probably is not way to optimize this, since we do not want to move forward until
              * both sensor data are received (or timeout happens).
              */
-            rmt_item32_t *data[NUMBER_OF_ECHO_PINS];
+            uint32_t rx_durations[NUMBER_OF_ECHO_PINS];
             TickType_t ticks_to_wait = HC_SR04_TIMEOUT;
             TickType_t start = xTaskGetTickCount();
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
-                data[echo] = (rmt_item32_t *)xRingbufferReceive(hc_sr04_rb_handles[echo], &rx_size, ticks_to_wait);
+                // size_t a = xRingbufferGetCurFreeSize(hc_sr04_rb_handles[echo]);
+                // ESP_LOGI(TAG, "Current free size: %d", a);
+                // xRingbufferPrintInfo(hc_sr04_rb_handles[echo]);
+                // data[echo] = (rmt_item32_t *)xRingbufferReceive(hc_sr04_rb_handles[echo], &rx_size, ticks_to_wait);
+                // ESP_LOGI(TAG, "Receiving on RB %p", hc_sr04_rb_handles[echo]);
+                rmt_item32_t *ptr = (rmt_item32_t *)xRingbufferReceive(hc_sr04_rb_handles[echo], &rx_size, ticks_to_wait);
+                if (ptr)
+                {
+                    rx_durations[echo] = ptr->duration0;
+                    vRingbufferReturnItem(hc_sr04_rb_handles[echo], (void *)ptr);
+                }
+                // ESP_LOGI(TAG, "Size: %d", rx_size);
                 rmt_rx_stop(echo);
 
                 /**
@@ -293,20 +322,17 @@ TASK hc_sr04_measure()
 
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
-                size_t measurement_index = echo + trig * NUMBER_OF_TRIG_PINS;
-                // ESP_LOGI(TAG, "index %d", measurement_index);
-                if (data[echo])
-                {
-                    uint32_t distance = hc_sr04_calculate_distance(data[echo]->duration0) - hc_sr04_distance_offset[measurement_index];
-                    vRingbufferReturnItem(hc_sr04_rb_handles[echo], (void *)data[echo]);
+                size_t measurement_index = echo + trig * NUMBER_OF_ECHO_PINS;
 
-                    // ESP_LOGI(TAG, "Distance %d", distance);
-                    hc_sr04_data.distance[measurement_index] = distance;
-                }
-                else
-                {
-                    hc_sr04_data.distance[measurement_index] = 0;
-                }
+#ifdef HC_SR04_MAP_SENSORS
+                measurement_index = hc_sr04_sensor_mapping[measurement_index];
+#endif
+                // ESP_LOGI(TAG, "index %d", measurement_index);
+                volatile uint32_t distance = hc_sr04_calculate_distance(rx_durations[echo]) - hc_sr04_distance_offset[measurement_index];
+                // ESP_LOGI(TAG, "Distance %d", distance);
+
+                // ESP_LOGI(TAG, "Distance %d", distance);
+                hc_sr04_data.distance[measurement_index] = distance;
             }
 
             // ESP_LOGI(TAG, "Sensor %d - distance %d", i, hc_sr04_data.distance[i]);
@@ -315,10 +341,10 @@ TASK hc_sr04_measure()
         }
         // ESP_LOGI(TAG, "Sending data to queue");
         // ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
-        // ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
-        //          hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
+        ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
+                 hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
 
-        ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
+        // ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
 
         // ESP_LOGI(TAG, "Queue address %p", hc_sr04_queue_data);
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);

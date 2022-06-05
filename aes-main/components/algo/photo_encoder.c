@@ -2,6 +2,7 @@
 
 #include <math.h>
 
+#include "esp_attr.h"
 #include "driver/gpio.h"
 
 #define PHOTO_ENCODER_GPIO_PIN_L GPIO_NUM_4
