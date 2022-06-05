@@ -17,7 +17,7 @@ END_POINT_VECTOR = pygame.Vector2(0, -RADAR_RADIUS)
 
 ANGLES = [-90, -67.5, -45, -22.5, 0, 22.5, 45, 67.5, 90]
 ANGLES_MARKERS = [22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180]
-ALPHA_TICK_DECREASE = 5
+ALPHA_TICK_DECREASE = 20
 
 #distance_HcSr04 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] # 1 w środku okręgu
 
@@ -62,18 +62,18 @@ class RadarMarkers:
 
     def add(self, angle, distance: float):
         angle_radians = math.radians(angle)
-        radius = RADAR_RADIUS * distance/10000000
+        radius = RADAR_RADIUS * distance
         marker = RadarMarker((-math.cos(angle_radians) * radius, math.sin(angle_radians) * radius, 1000, 1000),
-                             math.radians(angle - (22.5 * (1 - distance/10000000))), math.radians(angle))
+                             math.radians(angle - (22.5 * (1 - distance))), math.radians(angle))
         self.markers_list.append(marker)
 
     def draw(self):
         for marker in self.markers_list[:]:
+            marker.draw()
+            marker.tick_alpha()
             if marker.alpha <= 0:
                 # marker.draw_black()
                 self.markers_list.remove(marker)
-            marker.draw()
-            marker.tick_alpha()
 
 
 RADAR_MARKERS = RadarMarkers()
@@ -86,11 +86,21 @@ def draw_radar(distance) -> Surface:
     pygame.draw.line(radar, WHITE, (0, RADAR_RADIUS), (500, RADAR_RADIUS), LINE_THICKNESS)
     #pygame.draw.arc(radar, RED, (-250, 0, 1000, 1000), math.radians(0), math.radians(22.5), LINE_THICKNESS)
 
-
+    # print(len(RADAR_MARKERS.markers_list))
+    distance.reverse()
     for angle in range(len(ANGLES_MARKERS)):
-            r = randint(0, 10)
-            if r == 5:
-                RADAR_MARKERS.add(ANGLES_MARKERS[angle], distance[angle])
+        d = distance[angle]
+        if d == 0:
+            continue
+        d /= 2000000
+        # print(d)
+        d = max(min(d, 1), 0)
+        d = 1 - d
+        # print(d)
+        RADAR_MARKERS.add(ANGLES_MARKERS[angle], d)
+            # r = randint(0, 10)
+            # if r == 5:
+                # RADAR_MARKERS.add(ANGLES_MARKERS[angle], distance[angle])
 
     RADAR_MARKERS.draw()
     for marker in RADAR_MARKERS.markers_list:

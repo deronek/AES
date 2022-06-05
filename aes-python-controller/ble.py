@@ -123,7 +123,7 @@ class BLE:
 
     async def callback(self, sender: int, data: bytearray):
         try:
-            print('packet')
+            # print('packet')
             packet = BLE.BlePacket(data)
             await self.save_packet(packet)
         except KeyError:

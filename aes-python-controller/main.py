@@ -38,6 +38,8 @@ BORDER = pygame.Rect(WIDTH // 2 - 5, 0, 10, HEIGHT)
 
 FPS = 30
 
+# os.environ['PYTHONASYNCIODEBUG'] = '1'
+
 
 class AESController:
     async def draw_window(self):
@@ -61,17 +63,20 @@ class AESController:
     async def pygame_loop(self):
         current_time = 0
         while True:
+            await asyncio.sleep(0)
             last_time, current_time = current_time, time.time()
             await asyncio.sleep(1 / FPS - (current_time - last_time))  # tick
             await self.draw_window()
 
     async def handle_events(self, event_queue):
         while True:
+            await asyncio.sleep(0)
             event = await event_queue.get()
             if event.type == pygame.QUIT:
                 break
             else:
-                print("event", event)
+                pass
+                # print("event", event)
         asyncio.get_event_loop().stop()
 
     async def pygame_event_loop(self, event_queue):
@@ -102,17 +107,17 @@ class AESController:
         # ble_thread = Thread(target=asyncio.run, args=(self.ble.main("3C:61:05:30:8B:4A"),))
         # ble_thread.start()
 
-        pygame_event_task = asyncio.ensure_future(
-            self.pygame_event_loop(event_queue), loop=loop)
+        # pygame_event_task = asyncio.ensure_future(
+            # self.pygame_event_loop(event_queue), loop=loop)
         pygame_main_task = asyncio.ensure_future(self.pygame_loop(), loop=loop)
-        event_task = asyncio.ensure_future(
-            self.handle_events(event_queue), loop=loop)
+        # event_task = asyncio.ensure_future(
+            # self.handle_events(event_queue), loop=loop)
         ble_task = asyncio.ensure_future(self.ble.main(), loop=loop)
         
 
-        pygame_event_task.add_done_callback(self.exception_handler)
+        # pygame_event_task.add_done_callback(self.exception_handler)
         pygame_main_task.add_done_callback(self.exception_handler)
-        event_task.add_done_callback(self.exception_handler)
+        # event_task.add_done_callback(self.exception_handler)
         ble_task.add_done_callback(self.exception_handler)
         try:
             loop.run_forever()
@@ -121,8 +126,8 @@ class AESController:
         finally:
             ble_task.cancel()
             pygame_main_task.cancel()
-            pygame_event_task.cancel()
-            event_task.cancel()
+            # pygame_event_task.cancel()
+            # event_task.cancel()
 
         pygame.quit()
 
