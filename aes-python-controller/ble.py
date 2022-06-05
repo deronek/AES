@@ -5,10 +5,12 @@ import time
 from abc import ABC, abstractmethod
 from asyncio import Lock
 from enum import Enum
+from re import match
+from unittest import case
+
 
 from bleak import BleakScanner
 from bleak import BleakClient
-
 
 class SensorID(Enum):
     TASK_ID_HC_SR04 = 0
@@ -16,7 +18,7 @@ class SensorID(Enum):
     TASK_ID_ALGO = 2
 
 
-NUMBER_OF_HC_SR04_SENSORS = 2
+NUMBER_OF_HC_SR04_SENSORS = 8
 
 
 class LockedData(ABC):
@@ -48,13 +50,19 @@ class HcSr04(LockedData):
 
     data: list
 
+
+    def __init__(self):
+        super().__init__()
+        self.data = []
+
+
     async def update_data(self, data: list):
-        async with self.lock:
-            self.data = data
+        # async with self.lock:
+        self.data = data
 
     async def get_data(self):
-        async with self.lock:
-            distance = HcSr04.Distance(self.data)
+        # async with self.lock:
+        distance = HcSr04.Distance(self.data)
         return distance
 
 
@@ -71,6 +79,8 @@ ESP_GATT_UUID_CTRL_INDICATION = "0000abf1-0000-1000-8000-00805f9b34fb"
 ESP_GATT_UUID_DATA_NOTIFICATION = "0000abf2-0000-1000-8000-00805f9b34fb"
 ESP_GATT_UUID_HEARTBEAT = "0000abf5-0000-1000-8000-00805f9b34fb"
 
+HEARTBEAT_STRING = 'AES-2022'
+
 ################################ read MAC adress ##############################################
 # async def main():
 #     devices = await BleakScanner.discover()
@@ -81,7 +91,7 @@ ESP_GATT_UUID_HEARTBEAT = "0000abf5-0000-1000-8000-00805f9b34fb"
 last = 0
 
 
-class BLE():
+class BLE:
     hc_sr04: HcSr04
     logger: logging.Logger
 
@@ -113,6 +123,7 @@ class BLE():
 
     def callback(self, sender: int, data: bytearray):
         try:
+            print('packet')
             packet = BLE.BlePacket(data)
             self.save_packet(packet)
         except KeyError:
@@ -128,7 +139,9 @@ class BLE():
     async def main(self, address=ADDRESS):
         async with BleakClient(address) as client:
             await client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
-
+            # while True:
+            #     await client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
+            #     await asyncio.sleep(1)
             # send heartbeat every 1 second
             #     time.sleep(1)
             await asyncio.Event().wait()

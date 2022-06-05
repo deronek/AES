@@ -63,9 +63,10 @@ class BLE():
         self.heading = 0
 
     def callback(self, sender: int, data: bytearray):
-        algo_data = AlgoData(data)
-        print(algo_data.heading)
-        self.heading = algo_data.heading
+        print(list(data))
+        # algo_data = AlgoData(data)
+        # print(algo_data.heading)
+        # self.heading = algo_data.heading
         # global last
         # now = time.time()
         # print(last - now)
@@ -75,13 +76,13 @@ class BLE():
     async def main(self, address):
         async with BleakClient(address) as client:
             await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, self.callback)
-            while True:
-                await asyncio.sleep(1)
+            # while True:
+            #     await asyncio.sleep(1)
             # while True:
             #     a = input()
             #     await client.write_gatt_char(ESP_GATT_UUID_SPP_DATA_RECEIVE,
             #                            bytes(a.encode()))
-            # await asyncio.Event().wait()
+            await asyncio.Event().wait()
             # while True:
             #     await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, callback)
 
@@ -97,14 +98,14 @@ class BLE():
 # asyncio.run(main(address))
 
 # ############################################## read UUID adress ##################################
-# async def main(address: str):
-#      async with BleakClient(address) as client:
-#          svcs = await client.get_services()
-#          print("Services:")
-#          for service in svcs:
-#              print(service)
-# asyncio.run(main(address))
+async def main(address: str):
+     async with BleakClient(address) as client:
+         svcs = await client.get_services()
+         print("Services:")
+         for service in svcs:
+             print(service)
+asyncio.run(main(address))
 
-if __name__ == "__main__":
-    ble = BLE()
-    asyncio.run(ble.main(address))
+# if __name__ == "__main__":
+#     ble = BLE()
+#     asyncio.run(ble.main(address))

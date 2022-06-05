@@ -49,16 +49,19 @@ FPS = 30
 
 
 class AESController:
-    def draw_window(self):
+    async def draw_window(self):
         # WIN.fill(BLACK)
-        WIN.blit(draw_radar(), (37, 137))
+        #distance = [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
+        distance = await self.ble.HcSr04.get_data()
+        # distance = []
+        WIN.blit(draw_radar(distance), (37, 137))
         WIN.blit(draw_connection_status(), (35, 20))
-        # WIN.blit(draw_heading(angle=self.ble.heading), (200, 800))
+            # WIN.blit(draw_heading(angle=self.ble.heading), (200, 800))
         WIN.blit(draw_timestamp(), (1170, 50))
         WIN.blit(draw_app_manager(), (1300, 200))
         WIN.blit(draw_buttons(), (1500, 750))
 
-        # pygame_widgets.update(events)
+            # pygame_widgets.update(events)
         pygame.display.update()
 
     def pygame_task(self):
@@ -69,7 +72,7 @@ class AESController:
         while True:
             last_time, current_time = current_time, time.time()
             await asyncio.sleep(1 / FPS - (current_time - last_time))  # tick
-            self.draw_window()
+            await self.draw_window()
 
 
     async def handle_events(self, event_queue):
