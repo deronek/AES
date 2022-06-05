@@ -1,13 +1,12 @@
 #include "hc_sr04.h"
-#include "driver/gpio.h"
-#include "driver/rmt_rx.h"
+#include "driver/rmt.h"
 
 // constants
 /**
  * @brief Time to wait after every measurement (to decrease probability of inter-sensor disruptions)
  */
 #define MEASUREMENT_DELAY_TIME pdMS_TO_TICKS(10)
-#define HC_SR04_TIMEOUT pdMS_TO_TICKS(50)
+#define HC_SR04_TIMEOUT pdMS_TO_TICKS(80)
 
 #define NUMBER_OF_TRIG_PINS (NUMBER_OF_HC_SR04_SENSORS / 2)
 #define NUMBER_OF_ECHO_PINS 2
@@ -57,7 +56,9 @@ hc_sr04_data_type hc_sr04_data;
 
 uint8_t hc_sr04_trig_pins[NUMBER_OF_TRIG_PINS] = {
     GPIO_NUM_33,
-    GPIO_NUM_25};
+    GPIO_NUM_25,
+    GPIO_NUM_26,
+    GPIO_NUM_27};
 
 uint8_t hc_sr04_echo_pins[NUMBER_OF_ECHO_PINS] = {
     GPIO_NUM_14,
@@ -78,11 +79,22 @@ uint32_t hc_sr04_distance_offset[NUMBER_OF_HC_SR04_SENSORS] = {
     0,
     0};
 
-static rmt_channel_handle_t hc_sr04_rmt_rx_channels[NUMBER_OF_ECHO_PINS];
-static rmt_symbol_word_t hc_sr04_rmt_rx_data[NUMBER_OF_ECHO_PINS];
-static bool hc_sr04_rmt_rx_done[NUMBER_OF_ECHO_PINS];
-static uint32_t echo_index_ptrs[NUMBER_OF_ECHO_PINS];
-// RingbufHandle_t hc_sr04_rb_handles[NUMBER_OF_ECHO_PINS];
+/**
+ * @brief Mapping of sensor indexes (starting from the left).
+ */
+#define HC_SR04_MAP_SENSORS
+uint8_t hc_sr04_sensor_mapping[NUMBER_OF_HC_SR04_SENSORS] = {
+    0, // 1st
+    4, // 5th
+    1, // 2nd
+    5, // 6th
+    2, // 3rd
+    6, // 7th
+    3, // 4th
+    7, // 8th
+};
+
+RingbufHandle_t hc_sr04_rb_handles[NUMBER_OF_ECHO_PINS];
 
 // hc_sr04_gpio_type hc_sr04_gpio[NUMBER_OF_HC_SR04_SENSORS] = {{GPIO_NUM_25, GPIO_NUM_26}, {GPIO_NUM_25, GPIO_NUM_33}};
 
@@ -94,8 +106,8 @@ static uint32_t echo_index_ptrs[NUMBER_OF_ECHO_PINS];
 // hc_sr04_pair_type hc_sr04_pairs[NUMBER_OF_HC_SR04_PAIRS] = {
 //     {0, 1}};
 
-// function declarations
-static bool IRAM_ATTR rmt_rx_done_callback(rmt_channel_handle_t channel, rmt_rx_done_event_data_t *edata, void *echo_index_ptr);
+static uint64_t sensor0_start, sensor0_end, sensor1_start, sensor1_end;
+static bool sensor0_done, sensor1_done;
 
 // inline function declarations
 inline static uint32_t hc_sr04_calculate_distance(uint32_t time)
@@ -115,11 +127,6 @@ inline static uint32_t hc_sr04_calculate_distance(uint32_t time)
 
 // function declarations
 
-#define EXAMPLE_IR_RESOLUTION_HZ 1 * 1000 * 1000 // 1MHz resolution, 1 tick = 1us
-#define EXAMPLE_IR_TX_GPIO_NUM 18
-#define EXAMPLE_IR_RX_GPIO_NUM 19
-#define EXAMPLE_IR_NEC_DECODE_MARGIN 200 // Tolerance for parsing RMT symbols into bit stream
-
 void hc_sr04_init()
 {
     /**
@@ -137,41 +144,31 @@ void hc_sr04_init()
     }
 
     /**
-     * @brief Fill echo_index_ptrs structure for RMT RX callbacks.
-     */
-    for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
-    {
-        echo_index_ptrs[echo] = echo;
-    }
-
-    /**
      * @brief Initialize all echo pins
      */
 
-    for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
+    for (int i = 0; i < NUMBER_OF_ECHO_PINS; ++i)
     {
-        uint8_t pin = hc_sr04_echo_pins[echo];
+        uint8_t pin = hc_sr04_echo_pins[i];
 
         gpio_reset_pin(pin);
         gpio_set_pull_mode(pin, GPIO_PULLDOWN_ONLY);
 
-        rmt_rx_channel_config_t rx_channel_cfg = {
-            .clk_src = RMT_CLK_SRC_DEFAULT,
-            .resolution_hz = EXAMPLE_IR_RESOLUTION_HZ,
-            .mem_block_symbols = 1, // amount of RMT symbols that the channel can store at a time
-            .gpio_num = pin,
-        };
-        rmt_channel_handle_t channel_handle;
-        ESP_ERROR_CHECK(rmt_new_rx_channel(&rx_channel_cfg, &channel_handle));
+        rmt_config_t rmt_rx;
+        rmt_rx.channel = i;
+        rmt_rx.gpio_num = pin;
+        rmt_rx.clk_div = RMT_CLK_DIV;
+        rmt_rx.mem_block_num = 1;
+        rmt_rx.rmt_mode = RMT_MODE_RX;
+        rmt_rx.rx_config.filter_en = true;
+        rmt_rx.rx_config.filter_ticks_thresh = 100;
+        rmt_rx.rx_config.idle_threshold = rmt_item32_tIMEOUT_US / 10 * (RMT_TICK_10_US);
+        rmt_config(&rmt_rx);
+        rmt_driver_install(rmt_rx.channel, 1000, 0);
 
-        rmt_rx_event_callbacks_t cbs = {
-            .on_recv_done = rmt_rx_done_callback,
-        };
-        ESP_ERROR_CHECK(rmt_rx_register_event_callbacks(channel_handle, &cbs, &echo_index_ptrs[echo]));
+        rmt_get_ringbuf_handle(i, &(hc_sr04_rb_handles[i]));
 
-        ESP_ERROR_CHECK(rmt_enable(channel_handle));
-
-        hc_sr04_rmt_rx_channels[echo] = channel_handle;
+        ESP_LOGI(TAG, "Initialized echo pin at GPIO %d, RB handle: %p", pin, hc_sr04_rb_handles[i]);
     }
 
     // for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
@@ -223,56 +220,17 @@ void hc_sr04_init()
     }
 }
 
-static bool IRAM_ATTR rmt_rx_done_callback(rmt_channel_handle_t channel, rmt_rx_done_event_data_t *edata, void *echo_index_ptr)
-{
-    BaseType_t high_task_wakeup = pdFALSE;
-
-    uint32_t echo_index = *(uint32_t *)(echo_index_ptr);
-    hc_sr04_rmt_rx_done[echo_index] = true;
-
-    // hc_sr04_rmt_rx_data[echo_index] = edata->received_symbols[0];
-
-    vTaskNotifyGiveFromISR(app_manager_hc_sr04_task_handle, &high_task_wakeup);
-    return high_task_wakeup == pdTRUE;
-}
-
-inline static void rmt_reset_rx_status()
-{
-    for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
-    {
-        hc_sr04_rmt_rx_done[echo] = false;
-    }
-}
-
-inline static bool rmt_check_rx_status()
-{
-    for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
-    {
-        if (!hc_sr04_rmt_rx_done[echo])
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
 TASK hc_sr04_measure()
 {
     size_t rx_size = 0;
-
     // ESP_LOGI(TAG, "RB data %p %p", (void *)data, (void *)(&data));
 
     // ESP_LOGI(TAG, "Handles %p", &hc_sr04_rb_handles);
     // ESP_LOGI(TAG, "Queue %p", &hc_sr04_queue_data);
     // ESP_LOGI(TAG, "Data %p", &hc_sr04_data);
-    rmt_receive_config_t config = {
-        .signal_range_min_ns = 50,
-        .signal_range_max_ns = 40000000,
-    };
 
     for (;;)
     {
-        rmt_reset_rx_status();
         int val;
 
         /**
@@ -314,32 +272,38 @@ TASK hc_sr04_measure()
 
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
-                rmt_receive(hc_sr04_rmt_rx_channels[echo], &hc_sr04_rmt_rx_data[echo], sizeof(hc_sr04_rmt_rx_data[echo]), &config);
+                rmt_rx_start(echo, 1);
             }
-            // /**
-            //  * @todo We wait for the first item to receive, then we attempt to receive the second.
-            //  * There probably is not way to optimize this, since we do not want to move forward until
-            //  * both sensor data are received (or timeout happens).
-            //  */
-            // rmt_item32_t *data[NUMBER_OF_ECHO_PINS];
-            // TickType_t ticks_to_wait = HC_SR04_TIMEOUT;
-            // TickType_t start = xTaskGetTickCount();
-            // for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
-            // {
-            //     data[echo] = (rmt_item32_t *)xRingbufferReceive(hc_sr04_rb_handles[echo], &rx_size, ticks_to_wait);
-            //     rmt_rx_stop(echo);
-
-            //     /**
-            //      * @brief Decrease time to wait for next sensors, because we already waited that time.
-            //      * This is unsigned arithmetic, so it should give correct value even if FreeRTOS
-            //      * tick count overflows.
-            //      */
-            //     ticks_to_wait -= xTaskGetTickCount() - start;
-            // }
-
-            while (rmt_check_rx_status())
+            /**
+             * @todo We wait for the first item to receive, then we attempt to receive the second.
+             * There probably is not way to optimize this, since we do not want to move forward until
+             * both sensor data are received (or timeout happens).
+             */
+            uint32_t rx_durations[NUMBER_OF_ECHO_PINS];
+            TickType_t ticks_to_wait = HC_SR04_TIMEOUT;
+            TickType_t start = xTaskGetTickCount();
+            for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
-                ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+                // size_t a = xRingbufferGetCurFreeSize(hc_sr04_rb_handles[echo]);
+                // ESP_LOGI(TAG, "Current free size: %d", a);
+                // xRingbufferPrintInfo(hc_sr04_rb_handles[echo]);
+                // data[echo] = (rmt_item32_t *)xRingbufferReceive(hc_sr04_rb_handles[echo], &rx_size, ticks_to_wait);
+                // ESP_LOGI(TAG, "Receiving on RB %p", hc_sr04_rb_handles[echo]);
+                rmt_item32_t *ptr = (rmt_item32_t *)xRingbufferReceive(hc_sr04_rb_handles[echo], &rx_size, ticks_to_wait);
+                if (ptr)
+                {
+                    rx_durations[echo] = ptr->duration0;
+                    vRingbufferReturnItem(hc_sr04_rb_handles[echo], (void *)ptr);
+                }
+                // ESP_LOGI(TAG, "Size: %d", rx_size);
+                rmt_rx_stop(echo);
+
+                /**
+                 * @brief Decrease time to wait for next sensors, because we already waited that time.
+                 * This is unsigned arithmetic, so it should give correct value even if FreeRTOS
+                 * tick count overflows.
+                 */
+                ticks_to_wait -= xTaskGetTickCount() - start;
             }
 
             // /**
@@ -358,15 +322,16 @@ TASK hc_sr04_measure()
 
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
-                size_t measurement_index = echo + trig * NUMBER_OF_TRIG_PINS;
+                size_t measurement_index = echo + trig * NUMBER_OF_ECHO_PINS;
+
+#ifdef HC_SR04_MAP_SENSORS
+                measurement_index = hc_sr04_sensor_mapping[measurement_index];
+#endif
                 // ESP_LOGI(TAG, "index %d", measurement_index);
-                rmt_symbol_word_t data = hc_sr04_rmt_rx_data[echo];
+                volatile uint32_t distance = hc_sr04_calculate_distance(rx_durations[echo]) - hc_sr04_distance_offset[measurement_index];
+                // ESP_LOGI(TAG, "Distance %d", distance);
 
-                /**
-                 * @todo Handle incorrect value measured here.
-                 */
-
-                uint32_t distance = hc_sr04_calculate_distance(data.duration0) - hc_sr04_distance_offset[measurement_index];
+                // ESP_LOGI(TAG, "Distance %d", distance);
                 hc_sr04_data.distance[measurement_index] = distance;
             }
 
@@ -376,10 +341,10 @@ TASK hc_sr04_measure()
         }
         // ESP_LOGI(TAG, "Sending data to queue");
         // ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
-        // ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
-        //          hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
+        ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
+                 hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
 
-        ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
+        // ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
 
         // ESP_LOGI(TAG, "Queue address %p", hc_sr04_queue_data);
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);

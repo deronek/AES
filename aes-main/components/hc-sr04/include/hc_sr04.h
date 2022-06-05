@@ -16,7 +16,7 @@
 
 // constants
 
-#define NUMBER_OF_HC_SR04_SENSORS 4
+#define NUMBER_OF_HC_SR04_SENSORS 8
 
 #define HC_SR04_INIT_VALUE 0
 
