@@ -1,5 +1,9 @@
 import asyncio
+import copy
+import logging
 import time
+from abc import ABC, abstractmethod
+from asyncio import Lock
 from enum import Enum
 
 from bleak import BleakScanner
@@ -12,41 +16,60 @@ class SensorID(Enum):
     TASK_ID_ALGO = 2
 
 
-class SensorData:
-    def __init__(self, data: bytearray):
-        # print([hex(i) for i in data])
-        self.id = SensorID(data[0])
-        self.timestamp = int.from_bytes(data[1:5], byteorder='little')
-        self.data_len = data[5]
-        self.checksum = data[-1]
-        self.data = data[6:-1]
-        if len(self.data) != self.data_len:
-            raise ValueError(f'Incorrect data length, {len(self.data)=}, {self.data_len=}')
-
-
 NUMBER_OF_HC_SR04_SENSORS = 2
 
 
-class HC_SR04(SensorData):
-    def __init__(self, data: bytearray):
-        super().__init__(data)
+class LockedData(ABC):
+    lock: Lock
+    data: list
 
-        self.distance = []
-        for i in range(NUMBER_OF_HC_SR04_SENSORS):
-            self.distance.append(int.from_bytes(data[i * 4, i * 4 + 4]))
+    def __init__(self):
+        self.lock = Lock()
+
+    @abstractmethod
+    async def update_data(self, data: list):
+        pass
+
+    @abstractmethod
+    async def get_data(self):
+        pass
 
 
-class AlgoData(SensorData):
-    def __init__(self, data: bytearray):
-        super().__init__(data)
+class HcSr04(LockedData):
+    class Distance:
+        distance: list
 
-        self.heading = int.from_bytes(self.data, byteorder='little', signed=True) / 10
+        def __init__(self, data: list):
+            self.distance = []
+            for i in range(NUMBER_OF_HC_SR04_SENSORS):
+                self.distance.append(int.from_bytes(
+                    data[i * 4, i * 4 + 4],
+                    byteorder='little'))
+
+    data: list
+
+    async def update_data(self, data: list):
+        async with self.lock:
+            self.data = data
+
+    async def get_data(self):
+        async with self.lock:
+            distance = HcSr04.Distance(self.data)
+        return distance
 
 
-# address = "E8:31:CD:C4:76:62"
-address = "3C:61:05:30:8B:4A"
-ESP_GATT_UUID_SPP_DATA_NOTIFY = "0000abf2-0000-1000-8000-00805f9b34fb"
-ESP_GATT_UUID_SPP_DATA_RECEIVE = "0000abf1-0000-1000-8000-00805f9b34fb"
+# class AlgoData(LockedData):
+#     def __init__(self, data: list):
+#         self.data = data
+#
+#         self.heading = int.from_bytes(self.data, byteorder='little', signed=True) / 10
+
+
+ADDRESS = "E8:31:CD:C4:76:62"
+# ADDRESS = "3C:61:05:30:8B:4A"
+ESP_GATT_UUID_CTRL_INDICATION = "0000abf1-0000-1000-8000-00805f9b34fb"
+ESP_GATT_UUID_DATA_NOTIFICATION = "0000abf2-0000-1000-8000-00805f9b34fb"
+ESP_GATT_UUID_HEARTBEAT = "0000abf5-0000-1000-8000-00805f9b34fb"
 
 ################################ read MAC adress ##############################################
 # async def main():
@@ -59,28 +82,58 @@ last = 0
 
 
 class BLE():
+    hc_sr04: HcSr04
+    logger: logging.Logger
+
     def __init__(self):
+        self.hc_sr04 = HcSr04()
         self.heading = 0
 
-    def callback(self, sender: int, data: bytearray):
-        algo_data = AlgoData(data)
-        print(algo_data.heading)
-        self.heading = algo_data.heading
-        # global last
-        # now = time.time()
-        # print(last - now)
-        # last = now
-        # print(f"{sender}: {data}")
+        logger = logging.getLogger(self.__class__.__name__)
+        logging_handler = logging.FileHandler('ble.log')
+        logger.addHandler(logging_handler)
+        self.logger = logger
 
-    async def main(self, address):
+    class BlePacket:
+        id: SensorID
+        timestamp: int
+        data_len: int
+        data: list
+        checksum: int
+
+        def __init__(self, data: bytearray):
+            # print([hex(i) for i in data])
+            self.id = SensorID(data[0])
+            self.timestamp = int.from_bytes(data[1:5], byteorder='little')
+            self.data_len = data[5]
+            self.checksum = data[-1]
+            self.data = list(data[6:-1])
+            if len(self.data) != self.data_len:
+                raise ValueError(f'Incorrect data length, {len(self.data)=}, {self.data_len=}')
+
+    def callback(self, sender: int, data: bytearray):
+        try:
+            packet = BLE.BlePacket(data)
+            self.save_packet(packet)
+        except KeyError:
+            print(f'Unrecognized packet ID, got {data[0]}')
+
+    async def save_packet(self, packet: BlePacket):
+        match packet.id:
+            case SensorID.TASK_ID_HC_SR04:
+                await self.hc_sr04.update_data(packet.data)
+            case _:
+                raise KeyError(f'SensorID {packet.id} not implemented')
+
+    async def main(self, address=ADDRESS):
         async with BleakClient(address) as client:
-            await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, self.callback)
-            # while True:
+            await client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
+
+            # send heartbeat every 1 second
             #     time.sleep(1)
             await asyncio.Event().wait()
             # while True:
             #     await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, callback)
-
 
 # ble = BLE()
 # asyncio.run(ble.main(address))
