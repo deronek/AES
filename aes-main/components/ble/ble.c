@@ -41,6 +41,7 @@ enum
 
     BLE_IDX_DATA_NTY_CHAR,
     BLE_IDX_DATA_NTY_VAL,
+    BLE_IDX_DATA_NTY_CFG,
 
     BLE_IDX_HEARTBEAT_CHAR,
     BLE_IDX_HEARTBEAT_VAL,
@@ -64,6 +65,7 @@ static uint16_t spp_handle_table[BLE_IDX_NB];
 #define CHAR_DECLARATION_SIZE (sizeof(uint8_t))
 static const uint16_t primary_service_uuid = ESP_GATT_UUID_PRI_SERVICE;
 static const uint16_t character_declaration_uuid = ESP_GATT_UUID_CHAR_DECLARE;
+static const uint16_t character_client_config_uuid = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
 
 static const uint8_t char_prop_control_indication = ESP_GATT_CHAR_PROP_BIT_INDICATE | ESP_GATT_CHAR_PROP_BIT_WRITE;
 static const uint8_t char_prop_data_notification = ESP_GATT_CHAR_PROP_BIT_NOTIFY;
@@ -76,6 +78,7 @@ static const uint8_t ble_ctrl_val[BLE_CTRL_MAX_LEN] = {0x00};
 /// SPP Service - data notify characteristic, notify&read
 static const uint16_t ble_data_uuid = ESP_GATT_UUID_DATA_NOTIFICATION;
 static const uint8_t ble_data_val[BLE_DATA_MAX_LEN] = {0x00};
+static const uint8_t ble_data_ccc[2] = {0x00, 0x00};
 
 /// SPP Server - Heart beat characteristic, notify&write&read
 static const uint16_t ble_heartbeat_uuid = ESP_GATT_UUID_HEARTBEAT;
@@ -174,6 +177,10 @@ static const esp_gatts_attr_db_t spp_gatt_db[BLE_IDX_NB] =
         // SPP -  data notify characteristic Value
         [BLE_IDX_DATA_NTY_VAL] =
             {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&ble_data_uuid, ESP_GATT_PERM_READ, BLE_DATA_MAX_LEN, sizeof(ble_data_val), (uint8_t *)ble_data_val}},
+
+        // SPP -  data notify characteristic - Client Characteristic Configuration Descriptor
+        [BLE_IDX_DATA_NTY_CFG] =
+            {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, sizeof(uint16_t), sizeof(ble_data_ccc), (uint8_t *)ble_data_ccc}},
 
         // SPP -  Heart beat characteristic Declaration
         [BLE_IDX_HEARTBEAT_CHAR] =
