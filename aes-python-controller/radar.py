@@ -8,7 +8,7 @@ from constants import RAD0, RAD180, WHITE, RED, BLACK
 
 
 LINE_THICKNESS = 2
-SIZE = 10000, 10000
+SIZE = 2000, 2000
 
 RADAR_RADIUS = 500
 
@@ -46,11 +46,10 @@ class RadarMarker:
         # self.surface.set_alpha(self.alpha)
 
     def draw_black(self):
-        self.surface = pygame.Surface(SIZE, pygame.SRCALPHA)
-        self.alpha = 255
+        self.surface = pygame.Surface((1000, 500))
         pygame.draw.arc(self.surface, BLACK,
                         self.rect,
-                        self.start_angle, self.stop_angle, 4)
+                        self.start_angle, self.stop_angle, 10)
 
     def tick_alpha(self):
         self.alpha -= ALPHA_TICK_DECREASE
@@ -72,7 +71,7 @@ class RadarMarkers:
             marker.draw()
             marker.tick_alpha()
             if marker.alpha <= 0:
-                # marker.draw_black()
+                marker.draw_black()
                 self.markers_list.remove(marker)
 
 
