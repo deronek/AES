@@ -8,9 +8,9 @@ from enum import Enum
 from re import match
 from unittest import case
 
-
 from bleak import BleakScanner
 from bleak import BleakClient
+
 
 class SensorID(Enum):
     TASK_ID_HC_SR04 = 0
@@ -45,16 +45,14 @@ class HcSr04(LockedData):
             self.distance = []
             for i in range(NUMBER_OF_HC_SR04_SENSORS):
                 self.distance.append(int.from_bytes(
-                    data[i * 4 : i * 4 + 4],
+                    data[i * 4: i * 4 + 4],
                     byteorder='little'))
 
     data: list
 
-
     def __init__(self):
         super().__init__()
         self.data = []
-
 
     async def update_data(self, data: list):
         # async with self.lock:
@@ -91,9 +89,17 @@ HEARTBEAT_STRING = 'AES-2022'.encode()
 last = 0
 
 
+class BleControllerRequestId(Enum):
+    # TODO
+    pass
+
+
 class BLE:
     hc_sr04: HcSr04
     logger: logging.Logger
+    # TODO
+    client: BleakClient
+    tx_queue: asyncio.Queue
 
     def __init__(self):
         self.hc_sr04 = HcSr04()
@@ -103,6 +109,9 @@ class BLE:
         logging_handler = logging.FileHandler('ble.log')
         logger.addHandler(logging_handler)
         self.logger = logger
+
+        self.client = BleakClient(ADDRESS)
+        self.tx_queue = asyncio.Queue()
 
     class BlePacket:
         id: SensorID
@@ -137,6 +146,15 @@ class BLE:
                 raise KeyError(f'SensorID {packet.id} not implemented')
 
     async def main(self, address=ADDRESS):
+        # TODO: refactor client as class member
+        """
+        - handle connection
+        - handle reconnecting
+        - when connected:
+            - start notify
+            - send heartbeat (in loop)
+        """
+        # self.client.connect()
         async with BleakClient(address) as client:
             await client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
             while True:
@@ -148,6 +166,26 @@ class BLE:
             # await asyncio.Event().wait()
             # while True:
             #     await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, callback)
+
+    async def ble_tx(self):
+        while True:
+            if self.tx_queue.qsize() > 10:
+                # TODO
+                pass
+            data = self.tx_queue.get()
+            # TODO: send data
+            # await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, None)
+
+    async def send_start_drive(self):
+        if self.client.is_connected:
+            pass
+            # await self.tx_queue.put(BleControllerRequestId.XYZ)
+        # TODO: implement using queues
+        pass
+
+    async def send_stop_drive(self):
+        # TODO
+        pass
 
 # ble = BLE()
 # asyncio.run(ble.main(address))

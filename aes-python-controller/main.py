@@ -117,6 +117,7 @@ class AESController:
         # event_task = asyncio.ensure_future(
         #     self.handle_events(event_queue), loop=loop)
         ble_task = asyncio.ensure_future(self.ble.main(), loop=loop)
+        # TODO: add BLE TX coroutine
 
         # pygame_event_task.add_done_callback(self.exception_handler)
         pygame_main_task.add_done_callback(self.exception_handler)
