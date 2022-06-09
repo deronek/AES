@@ -119,7 +119,7 @@ void app_manager_create_sensor_tasks()
     task_utils_create_task(
         hc_sr04_measure,
         "hc_sr04_measure",
-        20000,
+        8192,
         NULL,
         4,
         &app_manager_hc_sr04_task_handle,
