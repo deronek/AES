@@ -6,7 +6,8 @@
  * @brief Time to wait after every measurement (to decrease probability of inter-sensor disruptions)
  */
 #define MEASUREMENT_DELAY_TIME pdMS_TO_TICKS(10)
-#define HC_SR04_TIMEOUT pdMS_TO_TICKS(80)
+#define HC_SR04_TIMEOUT_MS (40)
+#define HC_SR04_TIMEOUT_TICKS pdMS_TO_TICKS(HC_SR04_TIMEOUT_MS)
 
 #define NUMBER_OF_TRIG_PINS (NUMBER_OF_HC_SR04_SENSORS / 2)
 #define NUMBER_OF_ECHO_PINS 2
@@ -21,8 +22,8 @@
  * @todo fix this time
  *
  */
-#define rmt_item32_tIMEOUT_US 500000                     /*!< RMT receiver timeout value(us) */
-#define RMT_TICK_10_US (80000000 / RMT_CLK_DIV / 100000) /* RMT counter value for 10 us.(Source clock is APB clock) */
+#define rmt_item32_tIMEOUT_US (HC_SR04_TIMEOUT_MS * 1000)                                                                  /*!< RMT receiver timeout value(us) */
+#define RMT_TICK_10_US (80000000UL / RMT_CLK_DIV / 100000UL) /* RMT counter value for 10 us.(Source clock is APB clock) */ // 80
 #define ITEM_DURATION(d) ((d & 0x7fff) * 10 / RMT_TICK_10_US)
 
 // structs
@@ -112,9 +113,15 @@ static bool sensor0_done, sensor1_done;
 // inline function declarations
 inline static uint32_t hc_sr04_calculate_distance(uint32_t time)
 {
+    if (time == 0)
+    {
+        return 0;
+    }
+
     // rescale time to microseconds
     time *= 1000;
     time /= 800;
+    // time /= 8;
 
     // distance in micrometers
     /**
@@ -162,7 +169,8 @@ void hc_sr04_init()
         rmt_rx.rmt_mode = RMT_MODE_RX;
         rmt_rx.rx_config.filter_en = true;
         rmt_rx.rx_config.filter_ticks_thresh = 100;
-        rmt_rx.rx_config.idle_threshold = rmt_item32_tIMEOUT_US / 10 * (RMT_TICK_10_US);
+        // rmt_rx.rx_config.idle_threshold = rmt_item32_tIMEOUT_US / 10 * (RMT_TICK_10_US);
+        rmt_rx.rx_config.idle_threshold = 9280; // 2 m distance
         rmt_config(&rmt_rx);
         rmt_driver_install(rmt_rx.channel, 1000, 0);
 
@@ -266,6 +274,7 @@ TASK hc_sr04_measure()
              * @todo Change this delay to actually 10 us if possible.
              * Current implementation is slower this way and it is probable
              * that we miss some echo pulses this way.
+             * We can do it via interrupt and High Resolution timer.
              */
             vTaskDelay(pdMS_TO_TICKS(1));
             gpio_set_level(trig_pin, 0);
@@ -274,13 +283,14 @@ TASK hc_sr04_measure()
             {
                 rmt_rx_start(echo, 1);
             }
+
             /**
              * @todo We wait for the first item to receive, then we attempt to receive the second.
              * There probably is not way to optimize this, since we do not want to move forward until
              * both sensor data are received (or timeout happens).
              */
             uint32_t rx_durations[NUMBER_OF_ECHO_PINS];
-            TickType_t ticks_to_wait = HC_SR04_TIMEOUT;
+            TickType_t ticks_to_wait = HC_SR04_TIMEOUT_TICKS;
             TickType_t start = xTaskGetTickCount();
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
@@ -290,13 +300,25 @@ TASK hc_sr04_measure()
                 // data[echo] = (rmt_item32_t *)xRingbufferReceive(hc_sr04_rb_handles[echo], &rx_size, ticks_to_wait);
                 // ESP_LOGI(TAG, "Receiving on RB %p", hc_sr04_rb_handles[echo]);
                 rmt_item32_t *ptr = (rmt_item32_t *)xRingbufferReceive(hc_sr04_rb_handles[echo], &rx_size, ticks_to_wait);
+                rmt_rx_stop(echo);
                 if (ptr)
                 {
                     rx_durations[echo] = ptr->duration0;
                     vRingbufferReturnItem(hc_sr04_rb_handles[echo], (void *)ptr);
                 }
+                /**
+                 * @brief If you compile code with below else block (even if it only has NOP) with -Og optimization setting,
+                 * sensor measurement will not work. Use -Os or -O2 optimization setting.
+                 *
+                 * Could not pinpoint the reason of this issue, no debugger available.
+                 * Assembly analysis doesn't show any issue, looks correct.
+                 */
+                else
+                {
+                    rx_durations[echo] = 0;
+                    // _asm__ __volatile__("nop");
+                }
                 // ESP_LOGI(TAG, "Size: %d", rx_size);
-                rmt_rx_stop(echo);
 
                 /**
                  * @brief Decrease time to wait for next sensors, because we already waited that time.
