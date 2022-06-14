@@ -144,63 +144,59 @@ class BLE:
                 raise KeyError(f'SensorID {packet.id} not implemented')
 
 
-async def main(self, address=ADDRESS):
-    # TODO: refactor client as class member
-    """
-    - handle connection
-    - handle reconnecting
-    - when connected:
-        - start notify
-        - send heartbeat (in loop)
-    """
-    while True:
-        try:
-        # powrót gdy stracimy połaczneie
-            self.client.connect()
-            await self.client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
+    async def main(self, address=ADDRESS):
+        # TODO: refactor client as class member
+        """
+        - handle connection
+        - handle reconnecting
+        - when connected:
+            - start notify
+            - send heartbeat (in loop)
+        """
+        while True:
+            try:
+            # powrót gdy stracimy połaczneie
+                self.client.connect()
+                await self.client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
 
-            while True:
-                await self.client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
+                while True:
+                    await self.client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
+                    await asyncio.sleep(1)
+
+            except bleak.exc.BleakError as e:
+                print(f"Exception in BLE.main(): {str(e)}")
                 await asyncio.sleep(1)
 
-        except bleak.exc.BleakDBusError:
-            print("Exception Error in ble.py def main: %s", bleak.exc.BleakDBusError.dbus_error_details)
-            await asyncio.sleep(1)
+
+
+            # send heartbeat every 1 second
+            #     time.sleep(1)
+            # await asyncio.Event().wait()
+            # while True:
+            #     await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, callback)
+
+
+    async def ble_tx(self):
+        while True:
+            if self.tx_queue.qsize() > 10:
+                print("The queue is full")
+
+            data = await self.tx_queue.get()
+            # await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, None)
+            packet = [0x10, data.value]
+            await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, bytes(packet), response=True)
+
+
+    async def send_start_drive(self):
+        if self.client.is_connected:
+            await self.tx_queue.put(BleControllerRequestId.REQUEST_START_DRIVING)
 
 
 
-        # send heartbeat every 1 second
-        #     time.sleep(1)
-        # await asyncio.Event().wait()
-        # while True:
-        #     await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, callback)
+    async def send_stop_drive(self):
+        if self.client.is_connected:
+            await self.tx_queue.put(BleControllerRequestId.REQUEST_STOP_DRIVING)
 
-
-async def ble_tx(self):
-    while True:
-        if self.tx_queue.qsize() > 10:
-            # TODO
-            pass
-        data = self.tx_queue.get()
-        # TODO: send data
-        # await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, None)
-        packet = [0X10, data.value]
-        await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, bytes(packet), response=True)
-pass
-
-
-async def send_start_drive(self):
-    if self.client.is_connected:
-        await self.tx_queue.put(BleControllerRequestId.REQUEST_START_DRIVING)
-
-pass
-
-
-async def send_stop_drive(self):
-    if self.client.is_connected:
-        await self.tx_queue.put(BleControllerRequestId.REQUEST_STOP_DRIVING)
-
-pass
 # ble = BLE()
 # # asyncio.run(ble.main(address))
 #
