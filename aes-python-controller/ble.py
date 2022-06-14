@@ -156,7 +156,7 @@ class BLE:
         while True:
             try:
             # powrót gdy stracimy połaczneie
-                self.client.connect()
+                await self.client.connect()
                 await self.client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
 
                 while True:

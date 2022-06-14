@@ -114,13 +114,14 @@ class AESController:
         # pygame_event_task = asyncio.ensure_future(
         #     self.pygame_event_loop(event_queue), loop=loop)
         pygame_main_task = asyncio.ensure_future(self.pygame_loop(), loop=loop)
+        ble_tx = asyncio.ensure_future(self.ble.ble_tx(), loop=loop)
         # event_task = asyncio.ensure_future(
         #     self.handle_events(event_queue), loop=loop)
         ble_task = asyncio.ensure_future(self.ble.main(), loop=loop)
-        # TODO: add BLE TX coroutine
 
         # pygame_event_task.add_done_callback(self.exception_handler)
         pygame_main_task.add_done_callback(self.exception_handler)
+        ble_tx.add_done_callback(self.exception_handler)
         # event_task.add_done_callback(self.exception_handler)
         ble_task.add_done_callback(self.exception_handler)
         try:
@@ -130,6 +131,7 @@ class AESController:
         finally:
             ble_task.cancel()
             pygame_main_task.cancel()
+            ble_tx.cancel()
             # pygame_event_task.cancel()
             # event_task.cancel()
 
