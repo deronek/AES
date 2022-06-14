@@ -1,14 +1,10 @@
 import asyncio
-import copy
 import logging
-import time
 from abc import ABC, abstractmethod
 from asyncio import Lock
 from enum import Enum
-from re import match
-from unittest import case
 
-from bleak import BleakScanner
+import bleak
 from bleak import BleakClient
 
 
@@ -90,7 +86,8 @@ last = 0
 
 
 class BleControllerRequestId(Enum):
-    # TODO
+    REQUEST_START_DRIVING = 0
+    REQUEST_STOP_DRIVING = 1
     pass
 
 
@@ -142,61 +139,78 @@ class BLE:
         match packet.id:
             case SensorID.TASK_ID_HC_SR04:
                 await self.hc_sr04.update_data(packet.data)
+
             case _:
                 raise KeyError(f'SensorID {packet.id} not implemented')
 
-    async def main(self, address=ADDRESS):
-        # TODO: refactor client as class member
-        """
-        - handle connection
-        - handle reconnecting
-        - when connected:
-            - start notify
-            - send heartbeat (in loop)
-        """
-        # self.client.connect()
-        async with BleakClient(address) as client:
-            await client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
+
+async def main(self, address=ADDRESS):
+    # TODO: refactor client as class member
+    """
+    - handle connection
+    - handle reconnecting
+    - when connected:
+        - start notify
+        - send heartbeat (in loop)
+    """
+    while True:
+        try:
+        # powrót gdy stracimy połaczneie
+            self.client.connect()
+            await self.client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
+
             while True:
-                await client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
-                # time.sleep(1)
+                await self.client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
                 await asyncio.sleep(1)
-            # send heartbeat every 1 second
-            #     time.sleep(1)
-            # await asyncio.Event().wait()
-            # while True:
-            #     await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, callback)
 
-    async def ble_tx(self):
-        while True:
-            if self.tx_queue.qsize() > 10:
-                # TODO
-                pass
-            data = self.tx_queue.get()
-            # TODO: send data
-            # await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, None)
+        except bleak.exc.BleakDBusError:
+            print("Exception Error in ble.py def main: %s", bleak.exc.BleakDBusError.dbus_error_details)
+            await asyncio.sleep(1)
 
-    async def send_start_drive(self):
-        if self.client.is_connected:
+
+
+        # send heartbeat every 1 second
+        #     time.sleep(1)
+        # await asyncio.Event().wait()
+        # while True:
+        #     await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, callback)
+
+
+async def ble_tx(self):
+    while True:
+        if self.tx_queue.qsize() > 10:
+            # TODO
             pass
-            # await self.tx_queue.put(BleControllerRequestId.XYZ)
-        # TODO: implement using queues
-        pass
+        data = self.tx_queue.get()
+        # TODO: send data
+        # await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, None)
+        packet = [0X10, data.value]
+        await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, bytes(packet), response=True)
+pass
 
-    async def send_stop_drive(self):
-        # TODO
-        pass
 
+async def send_start_drive(self):
+    if self.client.is_connected:
+        await self.tx_queue.put(BleControllerRequestId.REQUEST_START_DRIVING)
+
+pass
+
+
+async def send_stop_drive(self):
+    if self.client.is_connected:
+        await self.tx_queue.put(BleControllerRequestId.REQUEST_STOP_DRIVING)
+
+pass
 # ble = BLE()
-# asyncio.run(ble.main(address))
-
+# # asyncio.run(ble.main(address))
 #
-# async def main(address):
-#     async with BleakClient(address) as client:
-#         while True:
-#             model_number = await client.read_gatt_char(ESP_GATT_UUID_SPP_DATA_RECEIVE)
-#             print(model_number)
-# asyncio.run(main(address))
+# #
+# # async def main(address):
+# #     async with BleakClient(address) as client:
+# #         while True:
+# #             model_number = await client.read_gatt_char(ESP_GATT_UUID_SPP_DATA_RECEIVE)
+# #             print(model_number)
+# # asyncio.run(main(address))
 
 # ############################################## read UUID adress ##################################
 # async def main(address: str):
