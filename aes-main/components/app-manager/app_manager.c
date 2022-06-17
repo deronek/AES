@@ -1,17 +1,21 @@
 #include "app_manager.h"
+#include "position.h"
+#include "photo_encoder.h"
 
 #include "driver/gpio.h"
+#include "freertos/task.h"
 
 // constants
 #define TASK_TICK_PERIOD pdMS_TO_TICKS(100)
 
 // global variables
 app_manager_state_type app_manager_state = APP_MANAGER_INIT;
+QueueHandle_t app_manager_event_queue;
 
 const uint8_t app_manager_task_data_size[] = {
     sizeof(hc_sr04_data_type),
-    sizeof(mpu9255_fifo_data_type),
-    sizeof(algo_heading_data_type)};
+    sizeof(mpu9255_quaternion_data_type),
+    sizeof(algo_ble_data_type)};
 
 // local variables
 static const char *TAG = "app_manager";
@@ -21,12 +25,14 @@ TaskHandle_t app_manager_algo_task_handle,
     app_manager_main_task_handle,
     app_manager_hc_sr04_task_handle,
     app_manager_ble_main_task_handle,
-    app_manager_ble_heartbeat_task_handle;
+    app_manager_ble_heartbeat_task_handle,
+    app_manager_init_task_handle;
 
 // function declarations
 static void app_manager_run();
 static void app_manager_update_state();
 static void app_manager_init_peripherals();
+static void app_manager_i2c_init();
 static void app_manager_create_ble_main_task();
 static void app_manager_create_ble_heartbeat_task();
 static void app_manager_create_sensor_tasks();
@@ -52,10 +58,20 @@ TASK app_manager_init()
 
     ESP_LOGI(TAG, "Core ID: %d", xPortGetCoreID());
     app_manager_init_peripherals();
-    // app_manager_create_ble_main_task();
-    // app_manager_create_ble_heartbeat_task();
+    app_manager_create_ble_main_task();
+    app_manager_create_ble_heartbeat_task();
     app_manager_create_sensor_tasks();
     app_manager_create_main_task();
+
+    /**
+     * @brief Create app manager event queue, used for communicating with
+     * algo and BLE modules.
+     */
+    app_manager_event_queue = xQueueCreate(5, sizeof(app_manager_event_type));
+    if (app_manager_event_queue == NULL)
+    {
+        abort();
+    }
 
     // estabilish communication with user here
     app_manager_state = APP_MANAGER_READY;
@@ -67,10 +83,34 @@ TASK app_manager_init()
 
 void app_manager_init_peripherals()
 {
+    algo_init();
+    app_manager_i2c_init();
     // i2c_master_init();
-    // mpu9255_init();
-    hc_sr04_init();
-    // ble_init();
+
+    mpu9255_init();
+    // hc_sr04_init();
+    ble_init();
+}
+
+void app_manager_i2c_init()
+{
+    TaskHandle_t task_handle;
+
+    /**
+     * @brief I2C init function must be executed on core which it operates on.
+     * If I2C handler is registered on another core, the other core is stuck in spinlock.
+     * Create the task and wait for it to notify the app_manager_init task
+     * that the initialization is complete, then delete the task.
+     */
+    task_utils_create_task(
+        i2c_master_init,
+        "i2c_master_init",
+        4096,
+        NULL,
+        5,
+        &task_handle,
+        1);
+    task_utils_request_delete_task(&task_handle, NULL);
 }
 
 void app_manager_create_ble_main_task()
@@ -104,26 +144,26 @@ void app_manager_create_sensor_tasks()
      * @brief MPU9255 sensor task
      */
 
-    // task_utils_create_task(
-    //     mpu9255_task_measure,
-    //     "mpu9255_task_measure",
-    //     2048,
-    //     NULL,
-    //     5,
-    //     &app_manager_mpu9255_task_handle,
-    //     0);
+    task_utils_create_task(
+        mpu9255_task_measure,
+        "mpu9255_task_measure",
+        4096,
+        NULL,
+        5,
+        &app_manager_mpu9255_task_handle,
+        1);
 
     /**
      * @brief HC-SR04 sensors task
      */
-    task_utils_create_task(
-        hc_sr04_measure,
-        "hc_sr04_measure",
-        8192,
-        NULL,
-        4,
-        &app_manager_hc_sr04_task_handle,
-        1);
+    // task_utils_create_task(
+    //     hc_sr04_measure,
+    //     "hc_sr04_measure",
+    //     8192,
+    //     NULL,
+    //     4,
+    //     &app_manager_hc_sr04_task_handle,
+    //     1);
 }
 
 void app_manager_create_main_task()
@@ -131,7 +171,7 @@ void app_manager_create_main_task()
     task_utils_create_task(
         app_manager_main,
         "app_manager_main",
-        2048,
+        4096,
         NULL,
         2,
         &app_manager_main_task_handle,
@@ -143,83 +183,86 @@ void app_manager_create_algo_task()
     task_utils_create_task(
         algo_main,
         "algo_main",
-        2048,
+        4096,
         NULL,
         4,
         &app_manager_algo_task_handle,
         0);
 }
 
+void app_manager_start_driving()
+{
+    app_manager_create_algo_task();
+    app_manager_state = APP_MANAGER_DRIVING;
+}
+
+void app_manager_stop_driving()
+{
+    if (app_manager_algo_task_handle != NULL)
+    {
+        task_utils_request_delete_task(&app_manager_algo_task_handle, algo_request_stop);
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Algo task handle empty");
+    }
+}
+
 TASK app_manager_main()
 {
-    // char *buffer = malloc(400);
-    // if (buffer == NULL)
-    // {
-    //     abort();
-    // }
-    // TickType_t last_wake_time = xTaskGetTickCount();
+    char *buffer = malloc(800);
+    if (buffer == NULL)
+    {
+        abort();
+    }
     // for (;;)
     // {
     //     app_manager_run();
     //     app_manager_update_state();
-    //     // vTaskGetRunTimeStats(buffer);
-    //     // printf("%s", buffer);
-    //     // vTaskDelay(pdMS_TO_TICKS(5000));
     //     task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     // }
-    // vTaskDelay(pdMS_TO_TICKS(5000));
 
-    // // set priority to high
-    // UBaseType_t old_priority = uxTaskPriorityGet(NULL);
-    // vTaskPrioritySet(NULL, 10);
+    vTaskDelay(5000);
+    app_manager_start_driving();
+    vTaskDelay(pdMS_TO_TICKS(60000));
+    algo_request_stop();
+    vTaskDelay(pdMS_TO_TICKS(5000));
 
-    // mpu9255_calibrate();
-    // algo_init();
-    // app_manager_create_algo_task();
-    // app_manager_state = APP_MANAGER_DRIVING;
-
-    // set priority back to low
-    // vTaskPrioritySet(NULL, 2);
+    vTaskGetRunTimeStats(buffer);
+    printf("%s", buffer);
     for (;;)
     {
-        vTaskDelay(pdMS_TO_TICKS(20000));
-        // unsigned char regs[12];
-        // mpu_read_mem((61 * 16), 4, regs);
-        // long x_bias = (regs[0] << 24) | (regs[1] << 16) | (regs[2] << 8) | regs[3];
-        // long y_bias = (regs[4] << 24) | (regs[5] << 16) | (regs[6] << 8) | regs[7];
-        // long z_bias = (regs[8] << 24) | (regs[9] << 16) | (regs[10] << 8) | regs[11];
-        // ESP_LOGI(TAG, "X: %li, Y: %li, Z: %li", x_bias, y_bias, z_bias);
+        // app_manager_event_type event;
+        // xQueueReceive(app_manager_event_queue, &event, portMAX_DELAY);
 
-        // short raw_gyro[3];
-        // mpu_get_gyro_reg(raw_gyro, NULL);
-        // ESP_LOGI(TAG, "Raw gyro: %d %d %d", raw_gyro[0], raw_gyro[1], raw_gyro[2]);
-
-        // short cal_gyro[3];
-        // mpu9255_fifo_data_type fifo;
-        // xQueuePeek(mpu9255_queue_fifo_data, &fifo, 0);
-        // ESP_LOGI(TAG, "Gyro from FIFO: %d %d %d", fifo.gyro.x, fifo.gyro.y, fifo.gyro.z);
-
-        // abort();
-
-        // size_t size = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
-        // printf("%d\n", size);
-
-        // print high water mark of tasks stacks
-        // UBaseType_t highmark_ble_spp = uxTaskGetStackHighWaterMark(ble_spp_task_handle);
-        // UBaseType_t highmark_ble = uxTaskGetStackHighWaterMark(app_manager_ble_main_task_handle);
-        // UBaseType_t highmark_mpu9255 = uxTaskGetStackHighWaterMark(app_manager_mpu9255_task_handle);
-        // UBaseType_t highmark_main = uxTaskGetStackHighWaterMark(app_manager_main_task_handle);
-        // UBaseType_t highmark_algo = uxTaskGetStackHighWaterMark(app_manager_algo_task_handle);
-
-        // printf("highmark_ble_spp: %d\n", highmark_ble_spp);
-        // printf("highmark_ble: %d\n", highmark_ble);
-        // printf("highmark_mpu9255: %d\n", highmark_mpu9255);
-        // printf("highmark_main: %d\n", highmark_main);
-        // printf("highmark_algo: %d\n", highmark_algo);
-
-        // print runtime stats
-        // vTaskGetRunTimeStats(buffer);
-        // printf("%s", buffer);
+        // /**
+        //  * @todo Check app manager state here and handle response to controller app.
+        //  */
+        // switch (event.type)
+        // {
+        // case EVENT_REQUEST_START:
+        //     if (event.source != TASK_ID_BLE)
+        //     {
+        //         break;
+        //     }
+        //     app_manager_start_driving();
+        //     break;
+        // case EVENT_REQUEST_STOP:
+        //     if (event.source != TASK_ID_BLE)
+        //     {
+        //         break;
+        //     }
+        //     app_manager_stop_driving();
+        //     break;
+        // case EVENT_FINISHED:
+        //     if (event.source != TASK_ID_ALGO)
+        //     {
+        //         break;
+        //     }
+        //     break;
+        // case EVENT_FAIL:
+        //     break;
+        // }
     }
 }
 
@@ -239,7 +282,7 @@ void app_manager_run()
         break;
     case APP_MANAGER_DRIVING:
         algo_run();
-        ESP_LOGI(TAG, "Yaw: %.1f", algo_euler_angles.yaw * 180.0 / M_PI);
+        // ESP_LOGI(TAG, "Yaw: %.1f", algo_euler_angles.yaw * 180.0 / M_PI);
         /*
             - wait for all sensor data:
                 - ultrasonic sensor

@@ -1058,11 +1058,56 @@ int mpu_read_6500_gyro_bias(long *gyro_bias)
 int mpu_set_gyro_bias_reg(long *gyro_bias)
 {
     unsigned char data[6] = {0, 0, 0, 0, 0, 0};
+    long gyro_reg_bias[3] = {0, 0, 0};
     int i = 0;
-    for (i = 0; i < 3; i++)
+
+    // for (i = 0; i < 3; i++)
+    // {
+    //     gyro_bias[i] = (-gyro_bias[i]);
+    // }
+
+    /**
+     * @author Mateusz Dionizy
+     * @brief Modified to apply bias relative to current sensor output
+     * (like mentioned in documentation).
+     */
+    if (mpu_read_6500_gyro_bias(gyro_reg_bias))
     {
-        gyro_bias[i] = (-gyro_bias[i]);
+        return -1;
     }
+
+    ESP_LOGI(TAG, "Gyro reg_bias 1: %li %li %li", gyro_reg_bias[0], gyro_reg_bias[1], gyro_reg_bias[2]);
+    gyro_reg_bias[0] = -gyro_reg_bias[0];
+    gyro_reg_bias[1] = -gyro_reg_bias[1];
+    gyro_reg_bias[2] = -gyro_reg_bias[2];
+
+    ESP_LOGI(TAG, "Gyro reg_bias 2: %li %li %li", gyro_reg_bias[0], gyro_reg_bias[1], gyro_reg_bias[2]);
+
+    gyro_reg_bias[0] -= (gyro_bias[0]);
+    gyro_reg_bias[1] -= (gyro_bias[1]);
+    gyro_reg_bias[2] -= (gyro_bias[2]);
+    ESP_LOGI(TAG, "Gyro reg_bias 3: %li %li %li", gyro_reg_bias[0], gyro_reg_bias[1], gyro_reg_bias[2]);
+
+    data[0] = (gyro_reg_bias[0] >> 8) & 0xff;
+    data[1] = (gyro_reg_bias[0]) & 0xff;
+    data[2] = (gyro_reg_bias[1] >> 8) & 0xff;
+    data[3] = (gyro_reg_bias[1]) & 0xff;
+    data[4] = (gyro_reg_bias[2] >> 8) & 0xff;
+    data[5] = (gyro_reg_bias[2]) & 0xff;
+    if (i2c_write(st.hw->addr, 0x13, 2, &data[0]))
+        return -1;
+    if (i2c_write(st.hw->addr, 0x15, 2, &data[2]))
+        return -1;
+    if (i2c_write(st.hw->addr, 0x17, 2, &data[4]))
+        return -1;
+    return 0;
+}
+
+int mpu_set_gyro_bias_reg_direct(const long *gyro_bias)
+{
+    unsigned char data[6] = {0, 0, 0, 0, 0, 0};
+    int i = 0;
+
     data[0] = (gyro_bias[0] >> 8) & 0xff;
     data[1] = (gyro_bias[0]) & 0xff;
     data[2] = (gyro_bias[1] >> 8) & 0xff;
@@ -1110,6 +1155,27 @@ int mpu_set_accel_bias_6050_reg(const long *accel_bias)
     if (i2c_write(st.hw->addr, 0x08, 2, &data[2]))
         return -1;
     if (i2c_write(st.hw->addr, 0x0A, 2, &data[4]))
+        return -1;
+
+    return 0;
+}
+
+int mpu_set_accel_bias_6500_reg_direct(const long *accel_bias)
+{
+    unsigned char data[6] = {0, 0, 0, 0, 0, 0};
+
+    data[0] = (accel_bias[0] >> 8) & 0xff;
+    data[1] = (accel_bias[0]) & 0xff;
+    data[2] = (accel_bias[1] >> 8) & 0xff;
+    data[3] = (accel_bias[1]) & 0xff;
+    data[4] = (accel_bias[2] >> 8) & 0xff;
+    data[5] = (accel_bias[2]) & 0xff;
+
+    if (i2c_write(st.hw->addr, 0x77, 2, &data[0]))
+        return -1;
+    if (i2c_write(st.hw->addr, 0x7A, 2, &data[2]))
+        return -1;
+    if (i2c_write(st.hw->addr, 0x7D, 2, &data[4]))
         return -1;
 
     return 0;
@@ -2946,12 +3012,23 @@ int mpu_write_mem(unsigned short mem_addr, unsigned short length,
 
     /* Check bank boundaries. */
     if (tmp[1] + length > st.hw->bank_size)
+    {
+        ESP_LOGE(TAG, "mpu_write_mem - ncorrect bank size");
         return -1;
+    }
 
     if (i2c_write(st.hw->addr, st.reg->bank_sel, 2, tmp))
+    {
+        ESP_LOGE(TAG, "mpu_write_mem - error in writing bank selection");
         return -1;
+    }
+
     if (i2c_write(st.hw->addr, st.reg->mem_r_w, length, data))
+    {
+        ESP_LOGE(TAG, "mpu_write_mem - error in writing memory chunk");
         return -1;
+    }
+
     return 0;
 }
 
@@ -2979,12 +3056,23 @@ int mpu_read_mem(unsigned short mem_addr, unsigned short length,
 
     /* Check bank boundaries. */
     if (tmp[1] + length > st.hw->bank_size)
+    {
+        ESP_LOGE(TAG, "Incorrect bank boundaries");
         return -1;
+    }
 
     if (i2c_write(st.hw->addr, st.reg->bank_sel, 2, tmp))
+    {
+        ESP_LOGE(TAG, "Error in selecting memory bank");
         return -1;
+    }
+
     if (i2c_read(st.hw->addr, st.reg->mem_r_w, length, data))
+    {
+        ESP_LOGE(TAG, "Error in reading memory chunk");
         return -1;
+    }
+
     return 0;
 }
 
@@ -3006,30 +3094,85 @@ int mpu_load_firmware(unsigned short length, const unsigned char *firmware,
     unsigned char cur[LOAD_CHUNK], tmp[2];
 
     if (st.chip_cfg.dmp_loaded)
-        /* DMP should only be loaded once. */
+    {
+        ESP_LOGE(TAG, "DMP should only be loaded once");
         return -1;
+    }
+    /* DMP should only be loaded once. */
 
     if (!firmware)
+    {
+        ESP_LOGE(TAG, "Incorrect firmware pointer");
         return -1;
+    }
+
     for (ii = 0; ii < length; ii += this_write)
     {
         this_write = min(LOAD_CHUNK, length - ii);
         if (mpu_write_mem(ii, this_write, (unsigned char *)&firmware[ii]))
+        {
+            ESP_LOGE(TAG, "Error in writing firmware chunk");
             return -1;
+        }
+
         if (mpu_read_mem(ii, this_write, cur))
+        {
+            ESP_LOGE(TAG, "Error in reading firmware chunk");
             return -1;
+        }
+
         if (memcmp(firmware + ii, cur, this_write))
+        {
+            ESP_LOGE(TAG, "Error in firmware verification");
+            ESP_LOGE(TAG, "Expected:");
+            for (int i = 0; i < this_write; ++i)
+            {
+                printf("%02x ", firmware[ii + i]);
+            }
+            putchar('\n');
+            ESP_LOGE(TAG, "Received:");
+            for (int i = 0; i < this_write; ++i)
+            {
+                printf("%02x ", cur[ii + i]);
+            }
+            putchar('\n');
             return -2;
+        }
     }
 
     /* Set program start address. */
     tmp[0] = start_addr >> 8;
     tmp[1] = start_addr & 0xFF;
     if (i2c_write(st.hw->addr, st.reg->prgm_start_h, 2, tmp))
+    {
+        ESP_LOGE(TAG, "Error in program start address write");
         return -1;
+    }
 
     st.chip_cfg.dmp_loaded = 1;
     st.chip_cfg.dmp_sample_rate = sample_rate;
+    return 0;
+}
+
+int mpu_reset_firmware()
+{
+    unsigned short ii;
+    unsigned short this_write;
+    unsigned char cur[LOAD_CHUNK];
+    memset(cur, 0, sizeof(cur));
+    uint16_t length = 3062;
+
+    for (ii = 0; ii < length; ii += this_write)
+    {
+        this_write = min(LOAD_CHUNK, length - ii);
+        if (mpu_write_mem(ii, this_write, cur))
+        {
+            ESP_LOGE(TAG, "Error in writing firmware chunk");
+            return -1;
+        }
+    }
+
+    st.chip_cfg.dmp_loaded = 0;
     return 0;
 }
 

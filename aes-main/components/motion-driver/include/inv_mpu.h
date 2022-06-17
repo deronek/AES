@@ -21,19 +21,20 @@
 #ifndef _INV_MPU_H_
 #define _INV_MPU_H_
 
-#define INV_X_GYRO      (0x40)
-#define INV_Y_GYRO      (0x20)
-#define INV_Z_GYRO      (0x10)
-#define INV_XYZ_GYRO    (INV_X_GYRO | INV_Y_GYRO | INV_Z_GYRO)
-#define INV_XYZ_ACCEL   (0x08)
+#define INV_X_GYRO (0x40)
+#define INV_Y_GYRO (0x20)
+#define INV_Z_GYRO (0x10)
+#define INV_XYZ_GYRO (INV_X_GYRO | INV_Y_GYRO | INV_Z_GYRO)
+#define INV_XYZ_ACCEL (0x08)
 #define INV_XYZ_COMPASS (0x01)
 
-#define INV_SELF_TEST_GYRO_PASS     (0x01)
-#define INV_SELF_TEST_ACCEL_PASS    (0x02)
-#define INV_SELF_TEST_COMPASS_PASS  (0x04)
-#define INV_SELF_TEST_ALL_PASS      (INV_SELF_TEST_GYRO_PASS | INV_SELF_TEST_ACCEL_PASS | INV_SELF_TEST_COMPASS_PASS)
+#define INV_SELF_TEST_GYRO_PASS (0x01)
+#define INV_SELF_TEST_ACCEL_PASS (0x02)
+#define INV_SELF_TEST_COMPASS_PASS (0x04)
+#define INV_SELF_TEST_ALL_PASS (INV_SELF_TEST_GYRO_PASS | INV_SELF_TEST_ACCEL_PASS | INV_SELF_TEST_COMPASS_PASS)
 
-struct int_param_s {
+struct int_param_s
+{
 #if defined EMPL_TARGET_MSP430 || defined MOTION_DRIVER_TARGET_MSP430
     void (*cb)(void);
     unsigned short pin;
@@ -41,7 +42,7 @@ struct int_param_s {
     unsigned char active_low;
 #elif defined EMPL_TARGET_UC3L0
     unsigned long pin;
-    void (*cb)(volatile void*);
+    void (*cb)(volatile void *);
     void *arg;
 #elif defined EMPL_TARGET_STM32F4
     void (*cb)(void);
@@ -50,20 +51,20 @@ struct int_param_s {
 #endif
 };
 
-#define MPU_INT_STATUS_DATA_READY       (0x0001)
-#define MPU_INT_STATUS_DMP              (0x0002)
-#define MPU_INT_STATUS_PLL_READY        (0x0004)
-#define MPU_INT_STATUS_I2C_MST          (0x0008)
-#define MPU_INT_STATUS_FIFO_OVERFLOW    (0x0010)
-#define MPU_INT_STATUS_ZMOT             (0x0020)
-#define MPU_INT_STATUS_MOT              (0x0040)
-#define MPU_INT_STATUS_FREE_FALL        (0x0080)
-#define MPU_INT_STATUS_DMP_0            (0x0100)
-#define MPU_INT_STATUS_DMP_1            (0x0200)
-#define MPU_INT_STATUS_DMP_2            (0x0400)
-#define MPU_INT_STATUS_DMP_3            (0x0800)
-#define MPU_INT_STATUS_DMP_4            (0x1000)
-#define MPU_INT_STATUS_DMP_5            (0x2000)
+#define MPU_INT_STATUS_DATA_READY (0x0001)
+#define MPU_INT_STATUS_DMP (0x0002)
+#define MPU_INT_STATUS_PLL_READY (0x0004)
+#define MPU_INT_STATUS_I2C_MST (0x0008)
+#define MPU_INT_STATUS_FIFO_OVERFLOW (0x0010)
+#define MPU_INT_STATUS_ZMOT (0x0020)
+#define MPU_INT_STATUS_MOT (0x0040)
+#define MPU_INT_STATUS_FREE_FALL (0x0080)
+#define MPU_INT_STATUS_DMP_0 (0x0100)
+#define MPU_INT_STATUS_DMP_1 (0x0200)
+#define MPU_INT_STATUS_DMP_2 (0x0400)
+#define MPU_INT_STATUS_DMP_3 (0x0800)
+#define MPU_INT_STATUS_DMP_4 (0x1000)
+#define MPU_INT_STATUS_DMP_5 (0x2000)
 
 /* Set up APIs */
 int mpu_init(struct int_param_s *int_param);
@@ -73,7 +74,7 @@ int mpu_set_bypass(unsigned char bypass_on);
 /* Configuration APIs */
 int mpu_lp_accel_mode(unsigned short rate);
 int mpu_lp_motion_interrupt(unsigned short thresh, unsigned char time,
-    unsigned short lpa_freq);
+                            unsigned short lpa_freq);
 int mpu_set_int_level(unsigned char active_low);
 int mpu_set_int_latched(unsigned char enable);
 
@@ -105,8 +106,16 @@ int mpu_configure_fifo(unsigned char sensors);
 int mpu_get_power_state(unsigned char *power_on);
 int mpu_set_sensors(unsigned char sensors);
 
+/**
+ * @author Mateusz Dionizy
+ * @brief Added below functions
+ */
+int mpu_read_6500_gyro_bias(long *gyro_bias);
+int mpu_set_gyro_bias_reg_direct(const long *gyro_bias);
+int mpu_set_accel_bias_6500_reg_direct(const long *gyro_bias);
+
 int mpu_read_6500_accel_bias(long *accel_bias);
-int mpu_set_gyro_bias_reg(long * gyro_bias);
+int mpu_set_gyro_bias_reg(long *gyro_bias);
 int mpu_set_accel_bias_6500_reg(const long *accel_bias);
 int mpu_read_6050_accel_bias(long *accel_bias);
 int mpu_set_accel_bias_6050_reg(const long *accel_bias);
@@ -119,17 +128,17 @@ int mpu_get_temperature(long *data, unsigned long *timestamp);
 
 int mpu_get_int_status(short *status);
 int mpu_read_fifo(short *gyro, short *accel, unsigned long *timestamp,
-    unsigned char *sensors, unsigned char *more);
+                  unsigned char *sensors, unsigned char *more);
 int mpu_read_fifo_stream(unsigned short length, unsigned char *data,
-    unsigned char *more);
+                         unsigned char *more);
 int mpu_reset_fifo(void);
 
 int mpu_write_mem(unsigned short mem_addr, unsigned short length,
-    unsigned char *data);
+                  unsigned char *data);
 int mpu_read_mem(unsigned short mem_addr, unsigned short length,
-    unsigned char *data);
+                 unsigned char *data);
 int mpu_load_firmware(unsigned short length, const unsigned char *firmware,
-    unsigned short start_addr, unsigned short sample_rate);
+                      unsigned short start_addr, unsigned short sample_rate);
 
 int mpu_reg_dump(void);
 int mpu_read_reg(unsigned char reg, unsigned char *data);
@@ -137,5 +146,6 @@ int mpu_run_self_test(long *gyro, long *accel);
 int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug);
 int mpu_register_tap_cb(void (*func)(unsigned char, unsigned char));
 
-#endif  /* #ifndef _INV_MPU_H_ */
+int mpu_reset_firmware();
 
+#endif /* #ifndef _INV_MPU_H_ */

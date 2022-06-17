@@ -6,9 +6,9 @@
 #include <math.h>
 
 // global variables
-float heading_odometry_current = 0.0;
+// float heading_odometry_current = 0.0;
 
-static photo_encoder_distance_type distance_old;
+// static photo_encoder_distance_type distance_old;
 
 void heading_odometry_init()
 {
@@ -19,11 +19,11 @@ void heading_odometry_init()
  */
 void heading_odometry_calculate()
 {
-    photo_encoder_distance_type distance = photo_encoder_distance;
-    distance.left -= distance_old.left;
-    distance.right -= distance_old.right;
+    // photo_encoder_distance_type distance = photo_encoder_distance;
+    // distance.left -= distance_old.left;
+    // distance.right -= distance_old.right;
 
-    float delta_heading = (distance.left - distance.right) / DISTANCE_BETWEEN_WHEELS;
+    // float delta_heading = (distance.left - distance.right) / DISTANCE_BETWEEN_WHEELS;
 
-    heading_odometry_current += delta_heading;
+    // heading_odometry_current += delta_heading;
 }

@@ -1,24 +1,29 @@
 #include "algo.h"
 
 #include "data_receive.h"
+#include "heading_imu.h"
+#include "position.h"
 #include "photo_encoder.h"
 #include "hall.h"
 
 // constants
-#define RAD_TO_DEG (180.0 / M_PI)
-#define DEG_TO_RAD (M_PI / 180.0)
 
-#define COMP_FILTER_ALPHA 0.5
+// #define COMP_FILTER_ALPHA 0.5
 
 // global variables
-algo_quaternion_type algo_quaternion;
-algo_euler_angles_type algo_euler_angles;
-QueueHandle_t algo_heading_data_queue;
+// algo_quaternion_type algo_quaternion;
+// algo_euler_angles_type algo_euler_angles;
+// algo_heading_data_type algo_heading;
+// QueueHandle_t algo_heading_data_queue;
+TaskHandle_t algo_position_photo_encoder_process_task_handle,
+    algo_position_accel_process_task_handle;
+QueueHandle_t algo_ble_data_queue;
 
 /**
  * @todo Refactor this with getter
  */
 bool algo_running = false;
+bool algo_stop_requested = false;
 
 // local variables
 /**
@@ -33,15 +38,16 @@ float phiHat_rad = 0.0f;
 float thetaHat_rad = 0.0f;
 
 // constants
-#define ALGO_FREQUENCY 10
 #define TASK_TICK_PERIOD TASK_HZ_TO_TICKS(ALGO_FREQUENCY)
 
-#define QUATERNION_SCALE_FACTOR (2 << 29)
-
 // function declarations
-static void algo_update_quaternion();
-static float algo_low_pass_tick(float xn);
-static float algo_high_pass_tick(float xn);
+static void algo_ble_send();
+static void algo_reset();
+static void algo_create_tasks();
+// static void algo_update_quaternion();
+// static float algo_low_pass_tick(float xn);
+// static float algo_high_pass_tick(float xn);
+static void algo_cleanup();
 
 // function definitions
 void algo_init()
@@ -50,30 +56,77 @@ void algo_init()
     /**
      * @todo Initialize all algo data structures
      */
-    if ((algo_heading_data_queue = xQueueCreate(1, sizeof(algo_heading_data_type))) == NULL)
+    if ((algo_ble_data_queue = xQueueCreate(1, sizeof(algo_ble_data_type))) == NULL)
     {
         abort();
     }
+
+    position_init();
+    photo_encoder_init();
+    heading_imu_init();
 }
 
-void algo_update_quaternion()
+void algo_create_tasks()
 {
-    algo_quaternion.w = (float)algo_mpu9255_fifo_data.quaternion.w / QUATERNION_SCALE_FACTOR;
-    algo_quaternion.x = (float)algo_mpu9255_fifo_data.quaternion.x / QUATERNION_SCALE_FACTOR;
-    algo_quaternion.y = (float)algo_mpu9255_fifo_data.quaternion.y / QUATERNION_SCALE_FACTOR;
-    algo_quaternion.z = (float)algo_mpu9255_fifo_data.quaternion.z / QUATERNION_SCALE_FACTOR;
+    task_utils_create_task(
+        position_accel_process,
+        "position_accel_process",
+        4096,
+        NULL,
+        5,
+        &algo_position_accel_process_task_handle,
+        1);
+
+    task_utils_create_task(
+        position_photo_encoder_process,
+        "position_photo_encoder_process",
+        4096,
+        NULL,
+        3,
+        &algo_position_photo_encoder_process_task_handle,
+        0);
+}
+
+static void algo_reset()
+{
+    /**
+     * @brief MPU9255
+     */
+    mpu_reset_fifo();
+    ESP_ERROR_CHECK(mpu9255_set_isr(true));
+    mpu9255_get_calibration();
+
+    ESP_LOGI(TAG, "Resetting DMP");
+    ESP_ERROR_CHECK(mpu9255_set_isr(false));
+    mpu9255_reset();
+    mpu9255_apply_calibration();
+    ESP_ERROR_CHECK(mpu9255_set_isr(true));
+    ESP_LOGI(TAG, "DMP reset");
+
+    /**
+     * @brief Photo encoder
+     */
+    photo_encoder_enable_isr();
 }
 
 TASK algo_main()
 {
+    algo_reset();
+    algo_create_tasks();
+
+    vTaskDelay(pdMS_TO_TICKS(50));
     algo_running = true;
-    // photo_encoder_enable_isr();
+
     // get start time of this iteration
     TickType_t last_wake_time = xTaskGetTickCount();
     for (;;)
     {
+        if (algo_stop_requested)
+        {
+            break;
+        }
         // wait for notification, which will be sent by any of the sensor tasks
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        // ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         /**
          * @todo Implement to only get data which actually updated,
@@ -83,34 +136,96 @@ TASK algo_main()
         // update algo data from sensors
         algo_data_receive_get_latest();
 
-        // run algo calculations
-        // heading_calculate();
-
         algo_run();
+
+        algo_ble_send();
 
         /**
          * @brief We want to run algo calculations at least with ALGO_FREQUENCY.
          * If we do not meet that time, signal a warning.
          */
-        // task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
+        task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     }
+
+    algo_cleanup();
+    algo_running = false;
+
+    xTaskNotifyGive(app_manager_main_task_handle);
+    vTaskSuspend(NULL);
+}
+
+void algo_cleanup()
+{
+    ESP_LOGI(TAG, "Algo cleanup requested");
+    /**
+     * @brief Request stop and delete all internal algo tasks.
+     */
+    task_utils_request_delete_task(&algo_position_accel_process_task_handle,
+                                   position_accel_process_request_stop);
+    task_utils_request_delete_task(&algo_position_photo_encoder_process_task_handle,
+                                   position_photo_encoder_process_request_stop);
+
+    /**
+     * @brief Stop receiving data from MPU9255 and reset accel data queue
+     * to be empty for next algo start.
+     */
+    ESP_ERROR_CHECK(mpu9255_set_isr(false));
+    vTaskDelay(pdMS_TO_TICKS(10));
+    xQueueReset(mpu9255_queue_accel_data);
+
+    /**
+     * @brief Stop photo encoder ISR.
+     */
+    photo_encoder_disable_isr();
+
+    position_reset();
+    heading_imu_reset();
+
+    algo_stop_requested = false;
+
+    ESP_LOGI(TAG, "Algo cleanup complete");
+}
+
+void algo_ble_send()
+{
+    algo_ble_data_type ble_data;
+
+    ble_data.heading = algo_heading.heading;
+    ble_data.pos_x = algo_position.x;
+    ble_data.pos_y = algo_position.y;
+
+    xQueueOverwrite(algo_ble_data_queue, &ble_data);
+    app_manager_ble_task_notify(TASK_FLAG_ALGO);
 }
 
 void algo_run()
 {
+    heading_imu_calculate();
+    position_calculate();
+    // desired_heading_caluclate();
+    // obstacle_avoidance_calculate();
+
+    // motor_calculate_control();
+    // motor_perform_control();
+
+    /**
+     * @todo Send big algo packet (with every calculated data)
+     * via BLE here.
+     */
+
     // float gyro_sens;
     // mpu_get_gyro_sens(&gyro_sens);
 
     // unsigned short accel_sens;
     // mpu_get_accel_sens(&accel_sens);
 
-    // float gyro_x = (float)algo_mpu9255_fifo_data.gyro.x / gyro_sens;
-    // float gyro_y = (float)algo_mpu9255_fifo_data.gyro.y / gyro_sens;
-    // float gyro_z = (float)algo_mpu9255_fifo_data.gyro.z / gyro_sens;
+    // float gyro_x = (float)algo_mpu9255_quaternion_data.gyro.x / gyro_sens;
+    // float gyro_y = (float)algo_mpu9255_quaternion_data.gyro.y / gyro_sens;
+    // float gyro_z = (float)algo_mpu9255_quaternion_data.gyro.z / gyro_sens;
 
-    // float accel_x = (float)algo_mpu9255_fifo_data.accel.x / accel_sens;
-    // float accel_y = (float)algo_mpu9255_fifo_data.accel.y / accel_sens;
-    // float accel_z = (float)algo_mpu9255_fifo_data.accel.z / accel_sens;
+    // float accel_x = (float)algo_mpu9255_quaternion_data.accel.x / accel_sens;
+    // float accel_y = (float)algo_mpu9255_quaternion_data.accel.y / accel_sens;
+    // float accel_z = (float)algo_mpu9255_quaternion_data.accel.z / accel_sens;
 
     // CompGyroUpdate(&filter, gyro_x, gyro_y, gyro_z);
     // CompAccelUpdate(&filter, accel_x, accel_y, accel_z);
@@ -137,13 +252,8 @@ void algo_run()
 
     // ESP_LOGI(TAG, "%.3f %.3f", phiHat_rad * RAD_TO_DEG, thetaHat_rad * RAD_TO_DEG);
 
-    algo_update_quaternion();
+    // algo_update_quaternion();
     // yaw
-    float siny_cosp = 2 * (algo_quaternion.w * algo_quaternion.z +
-                           algo_quaternion.x * algo_quaternion.y);
-    float cosy_cosp = 1 - 2 * (algo_quaternion.y * algo_quaternion.y +
-                               algo_quaternion.z * algo_quaternion.z);
-    float yaw_quat = atan2f(siny_cosp, cosy_cosp);
 
     // // roll
     // float sinr_cosp = 2 * (algo_quaternion.w * algo_quaternion.x + algo_quaternion.y * algo_quaternion.z);
@@ -162,8 +272,8 @@ void algo_run()
     //     algo_euler_angles.pitch = asinf(sinp);
     // }
 
-    // float mag_x = algo_mpu9255_fifo_data.mag.x;
-    // float mag_y = algo_mpu9255_fifo_data.mag.y;
+    // float mag_x = algo_mpu9255_quaternion_data.mag.x;
+    // float mag_y = algo_mpu9255_quaternion_data.mag.y;
 
     // float yaw_mag = atan2f(mag_y, mag_x);
     // float declination = 8.133 * DEG_TO_RAD;
@@ -174,15 +284,14 @@ void algo_run()
 
     // ESP_LOGI(TAG, "Yaw: %.2f", yaw_complimentary);
 
-    yaw_quat *= RAD_TO_DEG;
+    /*
 
-    algo_heading_data_type algo_heading;
-    algo_heading.heading = (int16_t)(yaw_quat * 10);
-    // ESP_LOGI(TAG, "%d", algo_heading.heading);
+        algo_heading_data_type algo_heading;
+        algo_heading.heading = (int16_t)(yaw_quat * 10);
 
-    xQueueOverwrite(algo_heading_data_queue, &algo_heading);
-    app_manager_ble_task_notify(TASK_FLAG_ALGO);
-    // ESP_LOGI(TAG, "Yaw quat: %.2f", yaw_quat);
+        xQueueOverwrite(algo_heading_data_queue, &algo_heading);
+        app_manager_ble_task_notify(TASK_FLAG_ALGO);
+    */
 
     // float yaw = atanf((-mag_y * cosf(algo_euler_angles.roll) + mag_z * sinf(algo_euler_angles.roll)) / (mag_x * cosf(algo_euler_angles.pitch) + mag_y * sinf(algo_euler_angles.roll) * sinf(algo_euler_angles.pitch) + mag_z * cosf(algo_euler_angles.roll) * sinf(algo_euler_angles.pitch)));
 
@@ -190,30 +299,35 @@ void algo_run()
     // ESP_LOGI(TAG, "Mag deg: %.2f", deg);
     // ESP_LOGI(TAG, "Yaw: %.2f", yaw * RAD_TO_DEG);
 
-    // ESP_LOGI(TAG, "Gyro: %hi %hi %hi", algo_mpu9255_fifo_data.gyro.x, algo_mpu9255_fifo_data.gyro.y, algo_mpu9255_fifo_data.gyro.z);
-    // ESP_LOGI(TAG, "Mag: %hi %hi %hi", algo_mpu9255_fifo_data.mag.x, algo_mpu9255_fifo_data.mag.y, algo_mpu9255_fifo_data.mag.z);
+    // ESP_LOGI(TAG, "Gyro: %hi %hi %hi", algo_mpu9255_quaternion_data.gyro.x, algo_mpu9255_quaternion_data.gyro.y, algo_mpu9255_quaternion_data.gyro.z);
+    // ESP_LOGI(TAG, "Mag: %hi %hi %hi", algo_mpu9255_quaternion_data.mag.x, algo_mpu9255_quaternion_data.mag.y, algo_mpu9255_quaternion_data.mag.z);
 }
 
-float algo_high_pass_tick(float xn)
+// float algo_high_pass_tick(float xn)
+// {
+//     static float yn_1 = 0;
+//     static float xn_1 = 0;
+
+//     float yn = COMP_FILTER_ALPHA * yn_1 + COMP_FILTER_ALPHA * (xn_1 - xn);
+
+//     yn_1 = yn;
+//     xn_1 = xn;
+
+//     return yn;
+// }
+
+// float algo_low_pass_tick(float xn)
+// {
+//     static float yn_1 = 0;
+
+//     float yn = (1 - COMP_FILTER_ALPHA) * xn + COMP_FILTER_ALPHA * yn_1;
+
+//     yn_1 = yn;
+
+//     return yn;
+// }
+
+void algo_request_stop()
 {
-    static float yn_1 = 0;
-    static float xn_1 = 0;
-
-    float yn = COMP_FILTER_ALPHA * yn_1 + COMP_FILTER_ALPHA * (xn_1 - xn);
-
-    yn_1 = yn;
-    xn_1 = xn;
-
-    return yn;
-}
-
-float algo_low_pass_tick(float xn)
-{
-    static float yn_1 = 0;
-
-    float yn = (1 - COMP_FILTER_ALPHA) * xn + COMP_FILTER_ALPHA * yn_1;
-
-    yn_1 = yn;
-
-    return yn;
+    algo_stop_requested = true;
 }

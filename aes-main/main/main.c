@@ -28,6 +28,6 @@ void app_main(void)
                            APP_MANAGER_INIT_STACK_DEPTH,
                            NULL,
                            APP_MANAGER_INIT_PRIORITY,
-                           NULL,
+                           &app_manager_init_task_handle,
                            0);
 }

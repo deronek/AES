@@ -22,7 +22,7 @@ static const char *TAG = "md-driver";
 
 // use I2C as master
 #define I2C_MASTER_NUM 0
-#define I2C_MASTER_TIMEOUT_MS 1000
+#define I2C_MASTER_TIMEOUT_MS 100
 
 #define i2c_write esp_i2c_write
 #define i2c_read esp_i2c_read

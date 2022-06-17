@@ -11,6 +11,6 @@
  * @brief Distance between wheels in micrometers
  * @todo Change with actual measured constant
  */
-#define DISTANCE_BETWEEN_WHEELS 10000
+#define DISTANCE_BETWEEN_WHEELS (10000)
 
 #endif

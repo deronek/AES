@@ -19,6 +19,7 @@
 #include "ble.h"
 
 // constants
+#define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
 
 // enums
 typedef enum app_manager_state_type_tag
@@ -39,6 +40,7 @@ typedef enum app_manager_task_id_type_tag
     TASK_ID_HC_SR04 = 0,
     TASK_ID_MPU9255 = 1,
     TASK_ID_ALGO = 2,
+    TASK_ID_BLE = 3,
 } app_manager_task_id_type;
 
 typedef enum app_manager_task_flag_type_tag
@@ -48,16 +50,32 @@ typedef enum app_manager_task_flag_type_tag
     TASK_FLAG_ALGO = (1 << TASK_ID_ALGO)
 } app_manager_task_flag_type;
 
+typedef enum app_manager_event_id_type_tag
+{
+    EVENT_REQUEST_START,
+    EVENT_REQUEST_STOP,
+    EVENT_FINISHED,
+    EVENT_FAIL,
+} app_manager_event_id_type;
+
 // structs
+
+typedef struct app_manager_event_type_tag
+{
+    app_manager_task_id_type source;
+    app_manager_event_id_type type;
+} app_manager_event_type;
 
 // global variables
 extern TaskHandle_t app_manager_algo_task_handle,
     app_manager_mpu9255_task_handle,
     app_manager_main_task_handle,
     app_manager_hc_sr04_task_handle,
-    app_manager_ble_task_handle;
+    app_manager_ble_task_handle,
+    app_manager_init_task_handle;
 
 extern app_manager_state_type app_manager_state;
+extern QueueHandle_t app_manager_event_queue;
 
 extern const uint8_t app_manager_task_data_size[];
 
@@ -65,6 +83,7 @@ extern const uint8_t app_manager_task_data_size[];
 
 TASK app_manager_init();
 TASK app_manager_main();
+void app_manager_start_driving();
 void app_manager_algo_task_notify(app_manager_task_flag_type task_flag);
 void app_manager_ble_task_notify(app_manager_task_flag_type task_flag);
 

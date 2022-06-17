@@ -2,7 +2,9 @@
 
 #include "driver/i2c.h"
 #include "driver/gpio.h"
+#include "freertos/task.h"
 #include "freertos/semphr.h"
+#include "app_manager.h"
 
 // global variables
 SemaphoreHandle_t i2c_mutex_handle;
@@ -18,7 +20,7 @@ static const char *TAG = "i2c";
 /**
  * @brief i2c master initialization
  */
-esp_err_t i2c_master_init(void)
+void i2c_master_init(void)
 {
     int i2c_master_port = I2C_MASTER_NUM;
 
@@ -44,5 +46,6 @@ esp_err_t i2c_master_init(void)
 
     ESP_LOGI(TAG, "I2C initialized successfully");
 
-    return ESP_OK;
+    xTaskNotifyGive(app_manager_init_task_handle);
+    vTaskSuspend(NULL);
 }

@@ -27,7 +27,8 @@
  * Do not include this header file in any of the
  * application code except algo features.
  */
-extern mpu9255_fifo_data_type algo_mpu9255_fifo_data;
+extern mpu9255_quaternion_data_type algo_mpu9255_quaternion_data;
+// extern photo_encoder_position_type algo_photo_encoder_position;
 extern hc_sr04_data_type algo_hc_sr04_data;
 
 // function declarations

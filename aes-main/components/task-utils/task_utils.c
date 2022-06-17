@@ -43,3 +43,22 @@ void task_utils_create_task(TaskFunction_t task,
     // ESP_LOGI(TAG, "Task %s created successfully, stack depth %hu, priority %u, core %d",
     //          task_name, stack_depth, priority, core_id);
 }
+
+void task_utils_request_delete_task(TaskHandle_t *task_handle, void (*request_stop_fun)())
+{
+    ESP_LOGI(TAG, "Requested stop");
+    if (request_stop_fun != NULL)
+    {
+        request_stop_fun();
+    }
+    /**
+     * @brief Wait for the notification from the task that
+     * that it is ready to be deleted.
+     */
+    ESP_LOGI(TAG, "Waiting for notification");
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    ESP_LOGI(TAG, "Deleting task");
+    vTaskDelete(*task_handle);
+    *task_handle = NULL;
+}

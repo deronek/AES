@@ -7,6 +7,7 @@
 #include "esp_bt.h"
 #include "nvs_flash.h"
 #include "driver/uart.h"
+#include "app_manager.h"
 // #include "gatt/gatt_int.h"
 
 ///// BLE Variable/////////////////////////////
@@ -111,13 +112,13 @@ typedef struct spp_receive_data_buff
     spp_receive_data_node_t *first_node;
 } spp_receive_data_buff_t;
 
-static spp_receive_data_buff_t SppRecvDataBuff = {
-    .node_num = 0,
-    .buff_size = 0,
-    .first_node = NULL};
+// static spp_receive_data_buff_t SppRecvDataBuff = {
+//     .node_num = 0,
+//     .buff_size = 0,
+//     .first_node = NULL};
 
-static spp_receive_data_node_t *temp_spp_recv_data_node_p1 = NULL;
-static spp_receive_data_node_t *temp_spp_recv_data_node_p2 = NULL;
+// static spp_receive_data_node_t *temp_spp_recv_data_node_p1 = NULL;
+// static spp_receive_data_node_t *temp_spp_recv_data_node_p2 = NULL;
 
 static esp_gatt_if_t spp_gatts_if = 0xff;
 
@@ -722,10 +723,10 @@ void ble_receive_data(uint8_t id, uint8_t *destination)
         queue = hc_sr04_queue_data;
         break;
     case TASK_ID_MPU9255:
-        queue = mpu9255_queue_fifo_data;
+        queue = mpu9255_queue_quaternion_data;
         break;
     case TASK_ID_ALGO:
-        queue = algo_heading_data_queue;
+        queue = algo_ble_data_queue;
         break;
     default:
         abort();
@@ -746,35 +747,41 @@ bool ble_is_connected()
 
 void ble_handle_indication_packet(esp_ble_gatts_cb_param_t *p_data)
 {
-    struct gatts_write_evt_param event = p_data->write;
-    if (event.len != 2)
+    struct gatts_write_evt_param received_event = p_data->write;
+    if (received_event.len != 2)
     {
-        ESP_LOGE(TAG, "Received controller packet with length %d", event.len);
+        ESP_LOGE(TAG, "Received controller packet with length %d", received_event.len);
         return;
     }
 
-    if (event.value[0] != BLE_CONTROLLER_PACKET_HEADER)
+    if (received_event.value[0] != BLE_CONTROLLER_PACKET_HEADER)
     {
-        ESP_LOGE(TAG, "Received controller packet with header %d", event.value[0]);
+        ESP_LOGE(TAG, "Received controller packet with header %d", received_event.value[0]);
         return;
     }
 
-    switch (event.value[1])
+    app_manager_event_type event_to_send;
+    event_to_send.source = TASK_ID_BLE;
+    switch (received_event.value[1])
     {
     case REQUEST_START_DRIVING:
-        ESP_LOGW(TAG, "Start driving");
+        event_to_send.type = EVENT_REQUEST_START;
         break;
     case REQUEST_STOP_DRIVING:
-        ESP_LOGW(TAG, "Stop driving");
+        event_to_send.type = EVENT_REQUEST_STOP;
         break;
-    case REQUEST_MPU9255_CALIBRATE:
-        ESP_LOGI(TAG, "MPU9255 start caliration");
+    default:
+        ESP_LOGE(TAG, "Unsupported request, value %x", received_event.value[1]);
         break;
     }
 
-    // for (int i = 0; i < event.len; ++i)
-    // {
-    //     printf("%c", event.value[i]);
-    // }
-    // printf("\n");
+    BaseType_t retval = xQueueSend(app_manager_event_queue, &event_to_send, pdMS_TO_TICKS(100));
+    if (retval != pdPASS)
+    {
+        ESP_LOGE(TAG, "App manager event queue full");
+    }
+
+    /**
+     * @todo Implement response to controller application here.
+     */
 }

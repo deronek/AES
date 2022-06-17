@@ -29,6 +29,8 @@ void task_utils_create_task(TaskFunction_t,
                             TaskHandle_t *,
                             BaseType_t);
 
+void task_utils_request_delete_task(TaskHandle_t *task_handle, void (*request_stop_fun)());
+
 // inline function definitions
 
 /**
