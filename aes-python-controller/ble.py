@@ -211,12 +211,9 @@ class BLE:
                     await self.client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
                     await asyncio.sleep(1)
 
-            except (BleakError, OSError) as e:
-                """
-                BleakError - returned by library
-                OSError - randomly happens when using WinRT
-                """
+            except Exception as e:
                 print(f"Exception in BLE.main(): {str(e)}")
+                # try again
                 await asyncio.sleep(1)
 
     async def ble_tx(self):
