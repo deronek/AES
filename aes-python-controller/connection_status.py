@@ -9,19 +9,19 @@ SIZE = (800, 100)
 FONT = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 80)
 
 
-class ConnectionStatus(Enum):
-    CONNECTED = auto()
-    NOT_CONNECTED = auto()
+# class ConnectionStatus(Enum):
+#     CONNECTED = auto()
+#     NOT_CONNECTED = auto()
+#
+#
+# CONNECTION_STATUS = ConnectionStatus.CONNECTED
 
 
-CONNECTION_STATUS = ConnectionStatus.CONNECTED
-
-
-def draw_connection_status():
+def draw_connection_status(connected: bool):
     con_status = pygame.Surface(SIZE)
     con_status_rect = pygame.Rect(0, 0, *SIZE)
 
-    if CONNECTION_STATUS == ConnectionStatus.CONNECTED:
+    if connected:
         status = FONT.render("CONNECTED", False, GREEN)
     else:
         status = FONT.render("NOT CONNECTED", False, RED)

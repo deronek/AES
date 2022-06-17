@@ -1,11 +1,14 @@
 import asyncio
 import logging
+import statistics
+import struct
+import time
 from abc import ABC, abstractmethod
 from asyncio import Lock
 from enum import Enum
 
 import bleak
-from bleak import BleakClient
+from bleak import BleakClient, BleakError
 
 
 class SensorID(Enum):
@@ -20,9 +23,11 @@ NUMBER_OF_HC_SR04_SENSORS = 8
 class LockedData(ABC):
     lock: Lock
     data: list
+    available: bool
 
     def __init__(self):
         self.lock = Lock()
+        self.available = False
 
     @abstractmethod
     async def update_data(self, data: list):
@@ -53,11 +58,40 @@ class HcSr04(LockedData):
     async def update_data(self, data: list):
         # async with self.lock:
         self.data = data
+        self.available = True
 
     async def get_data(self):
         # async with self.lock:
         distance = HcSr04.Distance(self.data)
         return distance
+
+
+class Algo(LockedData):
+    class Data:
+        heading: float
+        pos_x: float
+        pos_y: float
+
+        def __init__(self, data: list):
+            # TODO: data should be bytes in LockedData, not list
+            # print(data)
+            self.heading = struct.unpack('f', bytes(data[0:4]))[0]
+            self.pos_x = struct.unpack('f', bytes(data[4:8]))[0]
+            self.pos_y = struct.unpack('f', bytes(data[8:12]))[0]
+
+    def __init__(self):
+        super().__init__()
+        self.data = []
+
+    async def update_data(self, data: list):
+        # async with self.lock:
+        self.data = data
+        self.available = True
+
+    async def get_data(self):
+        # async with self.lock:
+        data = Algo.Data(self.data)
+        return data
 
 
 # class AlgoData(LockedData):
@@ -93,6 +127,7 @@ class BleControllerRequestId(Enum):
 
 class BLE:
     hc_sr04: HcSr04
+    algo: Algo
     logger: logging.Logger
     # TODO
     client: BleakClient
@@ -100,6 +135,7 @@ class BLE:
 
     def __init__(self):
         self.hc_sr04 = HcSr04()
+        self.algo = Algo()
         self.heading = 0
 
         logger = logging.getLogger(self.__class__.__name__)
@@ -109,6 +145,9 @@ class BLE:
 
         self.client = BleakClient(ADDRESS)
         self.tx_queue = asyncio.Queue()
+
+        self.last_time = None
+        self.times = []
 
     class BlePacket:
         id: SensorID
@@ -128,6 +167,15 @@ class BLE:
                 raise ValueError(f'Incorrect data length, {len(self.data)=}, {self.data_len=}')
 
     async def callback(self, sender: int, data: bytearray):
+        # if self.last_time is None:
+        #     self.last_time = time.time()
+        #     return
+        # current_time = time.time()
+        # self.times.append(current_time - self.last_time)
+        # self.last_time = current_time
+        # print(f'mean: {statistics.mean(self.times)}, '
+        #       f'stdev: {statistics.stdev(self.times)}, '
+        #       f'median: {statistics.median(self.times)}')
         try:
             # print('packet')
             packet = BLE.BlePacket(data)
@@ -139,10 +187,10 @@ class BLE:
         match packet.id:
             case SensorID.TASK_ID_HC_SR04:
                 await self.hc_sr04.update_data(packet.data)
-
+            case SensorID.TASK_ID_ALGO:
+                await self.algo.update_data(packet.data)
             case _:
                 raise KeyError(f'SensorID {packet.id} not implemented')
-
 
     async def main(self, address=ADDRESS):
         # TODO: refactor client as class member
@@ -155,7 +203,7 @@ class BLE:
         """
         while True:
             try:
-            # powrót gdy stracimy połaczneie
+                # powrót gdy stracimy połaczneie
                 await self.client.connect()
                 await self.client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
 
@@ -163,18 +211,13 @@ class BLE:
                     await self.client.write_gatt_char(ESP_GATT_UUID_HEARTBEAT, HEARTBEAT_STRING)
                     await asyncio.sleep(1)
 
-            except bleak.exc.BleakError as e:
+            except (BleakError, OSError) as e:
+                """
+                BleakError - returned by library
+                OSError - randomly happens when using WinRT
+                """
                 print(f"Exception in BLE.main(): {str(e)}")
                 await asyncio.sleep(1)
-
-
-
-            # send heartbeat every 1 second
-            #     time.sleep(1)
-            # await asyncio.Event().wait()
-            # while True:
-            #     await client.start_notify(ESP_GATT_UUID_SPP_DATA_NOTIFY, callback)
-
 
     async def ble_tx(self):
         while True:
@@ -182,20 +225,17 @@ class BLE:
                 print("The queue is full")
 
             data = await self.tx_queue.get()
-            # await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, None)
             packet = [0x10, data.value]
+            print(f'Sending BLE TX {packet}')
             await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, bytes(packet), response=True)
 
-
-    async def send_start_drive(self):
+    def send_start_drive(self):
         if self.client.is_connected:
-            await self.tx_queue.put(BleControllerRequestId.REQUEST_START_DRIVING)
+            self.tx_queue.put_nowait(BleControllerRequestId.REQUEST_START_DRIVING)
 
-
-
-    async def send_stop_drive(self):
+    def send_stop_drive(self):
         if self.client.is_connected:
-            await self.tx_queue.put(BleControllerRequestId.REQUEST_STOP_DRIVING)
+            self.tx_queue.put_nowait(BleControllerRequestId.REQUEST_STOP_DRIVING)
 
 # ble = BLE()
 # # asyncio.run(ble.main(address))
