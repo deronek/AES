@@ -42,13 +42,31 @@ void task_utils_request_delete_task(TaskHandle_t *task_handle, void (*request_st
  * @param ticks_to_wait  ticks number between task loop execution
  * @param tag            string identifying the module, used for logging purposes
  */
+
+#define vTaskDelayUntilWorkaround
 inline void task_utils_sleep_or_warning(TickType_t *last_wake_time, TickType_t ticks_to_wait, const char *tag)
 {
+/**
+ * @brief vTaskDelayUntil seems bugged, sometimes it does not update the last_wake_time variable, even
+ * if the sleep happened.
+ * Needed to implement another way to check whether the sleep did not happen.
+ */
+#ifdef vTaskDelayUntilWorkaround
+     TickType_t before_sleep = xTaskGetTickCount();
+#endif
      vTaskDelayUntil(last_wake_time, ticks_to_wait);
+#ifdef vTaskDelayUntilWorkaround
+     *last_wake_time = xTaskGetTickCount();
+     if (*last_wake_time == before_sleep)
+     {
+          ESP_LOGW(tag, "Task did not slept; probable performance issue");
+     }
+#else
      if (*last_wake_time != xTaskGetTickCount())
      {
           ESP_LOGW(tag, "Task did not slept; probable performance issue");
      }
+#endif
 }
 
 #endif

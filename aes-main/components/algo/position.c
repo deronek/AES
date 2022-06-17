@@ -18,6 +18,9 @@ typedef struct accel_velocity_type_tag
 #define G_UNIT_TO_M_S2 (9.80665)
 #define TIME_DELTA_ACCEL (1.0 / 200)
 
+#define ALGO_POSITION_FREQUENCY (10)
+#define TASK_TICK_PERIOD (TASK_HZ_TO_TICKS(ALGO_POSITION_FREQUENCY))
+
 #define PHOTO_ENCODER_TIMEOUT_MS (50)
 #define PHOTO_ENCODER_TIMEOUT_TICKS (pdMS_TO_TICKS(PHOTO_ENCODER_TIMEOUT_MS))
 
@@ -25,7 +28,7 @@ typedef struct accel_velocity_type_tag
 #define ACCEL_TIMEOUT_TICKS (pdMS_TO_TICKS(ACCEL_TIMEOUT_MS))
 
 // global variables
-algo_position_type algo_position;
+QueueHandle_t position_queue;
 
 // local variables
 static QueueHandle_t photo_encoder_position_queue;
@@ -34,6 +37,7 @@ static mpu9255_sensor_data_type accel_data;
 // static comp_iir_filter_type *filter;
 static const char *TAG = "algo-position";
 
+static bool position_process_stop_requested = false;
 static bool photo_encoder_process_stop_requested = false;
 static bool accel_process_stop_requested = false;
 
@@ -55,52 +59,84 @@ void position_init()
     {
         abort();
     }
+
+    position_queue = xQueueCreate(1, sizeof(photo_encoder_position_type));
+    if (position_queue == NULL)
+    {
+        abort();
+    }
 }
 
-void position_calculate()
+TASK position_process()
 {
     int retval;
+    algo_position_type position = {0};
 
-    accel_velocity_type accel_velocity;
-    retval = xQueuePeek(accel_velocity_queue, &accel_velocity, 0);
-    if (retval != pdTRUE)
+    /**
+     * @brief Put (0, 0) position into position_queue
+     * so that the data can be used in the algorithm.
+     */
+    xQueueOverwrite(position_queue, &position);
+
+    TickType_t last_wake_time = xTaskGetTickCount();
+    for (;;)
     {
-        ESP_LOGE(TAG, "No data in accel queue");
+        // ESP_LOGI(TAG, "Position start iter");
+        if (position_process_stop_requested)
+        {
+            break;
+        }
+        accel_velocity_type accel_velocity;
+        retval = xQueuePeek(accel_velocity_queue, &accel_velocity, 0);
+        if (retval != pdTRUE)
+        {
+            ESP_LOGE(TAG, "No data in accel queue");
+        }
+
+        photo_encoder_position_type photo_encoder_position;
+        retval = xQueuePeek(photo_encoder_position_queue, &photo_encoder_position, 0);
+        if (retval != pdTRUE)
+        {
+            ESP_LOGE(TAG, "No data found in photo encoder queue");
+        }
+
+        /**
+         * @brief Multiplying velocity by delta time gives
+         * position change from the accelerometer in that time.
+         *
+         * @todo Check whether this task should run at faster frequency
+         * than total of the algo task; it might result in more accurate
+         * position estimate.
+         */
+        float accel_delta_x = accel_velocity.x * ALGO_POSITION_FREQUENCY;
+        float accel_delta_y = accel_velocity.y * ALGO_POSITION_FREQUENCY;
+
+        /**
+         * @brief Get accelerometer position estimate by adding
+         * total previous estimate to the current change.
+         */
+        float accel_x = accel_delta_x + position.x;
+        float accel_y = accel_delta_y + position.y;
+
+        /**
+         * @brief Update position variable.
+         */
+        position.x = (POSITION_COMP_FILTER_ALPHA * accel_x) +
+                     ((1 - POSITION_COMP_FILTER_ALPHA) * photo_encoder_position.x);
+
+        position.y = (POSITION_COMP_FILTER_ALPHA * accel_y) +
+                     ((1 - POSITION_COMP_FILTER_ALPHA) * photo_encoder_position.y);
+
+        xQueueOverwriteFromISR(position_queue, &position, NULL);
+        // xQueueOverwrite(position_queue, &position);
+        // ESP_LOGI(TAG, "Position stop iter");
+        task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     }
+    xQueueReset(position_queue);
 
-    photo_encoder_position_type photo_encoder_position;
-    retval = xQueuePeek(photo_encoder_position_queue, &photo_encoder_position, 0);
-    if (retval != pdTRUE)
-    {
-        ESP_LOGE(TAG, "No data found in photo encoder queue");
-    }
-
-    /**
-     * @brief Multiplying velocity by delta time gives
-     * position change from the accelerometer in that time.
-     *
-     * @todo Check whether this task should run at faster frequency
-     * than total of the algo task; it might result in more accurate
-     * position estimate.
-     */
-    float accel_delta_x = accel_velocity.x * ALGO_DELTA_TIME;
-    float accel_delta_y = accel_velocity.y * ALGO_DELTA_TIME;
-
-    /**
-     * @brief Get accelerometer position estimate by adding
-     * total previous estimate to the current change.
-     */
-    float accel_x = accel_delta_x + algo_position.x;
-    float accel_y = accel_delta_y + algo_position.y;
-
-    /**
-     * @brief Update position variable.
-     */
-    algo_position.x = (POSITION_COMP_FILTER_ALPHA * accel_x) +
-                      ((1 - POSITION_COMP_FILTER_ALPHA) * photo_encoder_position.x);
-
-    algo_position.y = (POSITION_COMP_FILTER_ALPHA * accel_y) +
-                      ((1 - POSITION_COMP_FILTER_ALPHA) * photo_encoder_position.y);
+    ESP_LOGI(TAG, "Suspending position_process");
+    xTaskNotifyGive(app_manager_algo_task_handle);
+    vTaskSuspend(NULL);
 }
 
 TASK position_photo_encoder_process()
@@ -170,7 +206,8 @@ TASK position_photo_encoder_process()
         pos.x += delta_center * cosf(heading);
         pos.y += delta_center * sinf(heading);
 
-        xQueueOverwrite(photo_encoder_position_queue, &pos);
+        xQueueOverwriteFromISR(photo_encoder_position_queue, &pos, NULL);
+        // xQueueOverwrite(photo_encoder_position_queue, &pos);
 
         /**
          * @brief Reset delta values to zero.
@@ -237,7 +274,8 @@ TASK position_accel_process()
 #endif
         // ESP_LOGI(TAG, "x_vel = %.2f", x_vel);
         // ESP_LOGI(TAG, "y_vel = %.2f", y_vel);
-        xQueueOverwrite(accel_velocity_queue, &v);
+        xQueueOverwriteFromISR(accel_velocity_queue, &v, NULL);
+        // xQueueOverwrite(accel_velocity_queue, &v);
     }
     xQueueReset(accel_velocity_queue);
 
@@ -252,11 +290,14 @@ TASK position_accel_process()
  */
 void position_reset()
 {
+    position_process_stop_requested = false;
     photo_encoder_process_stop_requested = false;
     accel_process_stop_requested = false;
+}
 
-    algo_position.x = 0.0;
-    algo_position.y = 0.0;
+void position_process_request_stop()
+{
+    position_process_stop_requested = true;
 }
 
 void position_photo_encoder_process_request_stop()

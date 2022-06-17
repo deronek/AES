@@ -149,7 +149,7 @@ void app_manager_create_sensor_tasks()
         "mpu9255_task_measure",
         4096,
         NULL,
-        5,
+        7,
         &app_manager_mpu9255_task_handle,
         1);
 
@@ -222,47 +222,48 @@ TASK app_manager_main()
     //     task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     // }
 
-    vTaskDelay(5000);
-    app_manager_start_driving();
-    vTaskDelay(pdMS_TO_TICKS(60000));
-    algo_request_stop();
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    // vTaskDelay(20000);
+    // app_manager_start_driving();
+    // vTaskDelay(pdMS_TO_TICKS(60000));
+    // algo_request_stop();
+    // vTaskDelay(pdMS_TO_TICKS(5000));
 
-    vTaskGetRunTimeStats(buffer);
-    printf("%s", buffer);
+    // vTaskGetRunTimeStats(buffer);
+    // printf("%s", buffer);
     for (;;)
     {
-        // app_manager_event_type event;
-        // xQueueReceive(app_manager_event_queue, &event, portMAX_DELAY);
+        // vTaskDelay(5000);
+        app_manager_event_type event;
+        xQueueReceive(app_manager_event_queue, &event, portMAX_DELAY);
 
-        // /**
-        //  * @todo Check app manager state here and handle response to controller app.
-        //  */
-        // switch (event.type)
-        // {
-        // case EVENT_REQUEST_START:
-        //     if (event.source != TASK_ID_BLE)
-        //     {
-        //         break;
-        //     }
-        //     app_manager_start_driving();
-        //     break;
-        // case EVENT_REQUEST_STOP:
-        //     if (event.source != TASK_ID_BLE)
-        //     {
-        //         break;
-        //     }
-        //     app_manager_stop_driving();
-        //     break;
-        // case EVENT_FINISHED:
-        //     if (event.source != TASK_ID_ALGO)
-        //     {
-        //         break;
-        //     }
-        //     break;
-        // case EVENT_FAIL:
-        //     break;
-        // }
+        /**
+         * @todo Check app manager state here and handle response to controller app.
+         */
+        switch (event.type)
+        {
+        case EVENT_REQUEST_START:
+            if (event.source != TASK_ID_BLE)
+            {
+                break;
+            }
+            app_manager_start_driving();
+            break;
+        case EVENT_REQUEST_STOP:
+            if (event.source != TASK_ID_BLE)
+            {
+                break;
+            }
+            app_manager_stop_driving();
+            break;
+        case EVENT_FINISHED:
+            if (event.source != TASK_ID_ALGO)
+            {
+                break;
+            }
+            break;
+        case EVENT_FAIL:
+            break;
+        }
     }
 }
 

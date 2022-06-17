@@ -15,7 +15,8 @@
 // algo_euler_angles_type algo_euler_angles;
 // algo_heading_data_type algo_heading;
 // QueueHandle_t algo_heading_data_queue;
-TaskHandle_t algo_position_photo_encoder_process_task_handle,
+TaskHandle_t algo_position_process_task_handle,
+    algo_position_photo_encoder_process_task_handle,
     algo_position_accel_process_task_handle;
 QueueHandle_t algo_ble_data_queue;
 
@@ -73,7 +74,7 @@ void algo_create_tasks()
         "position_accel_process",
         4096,
         NULL,
-        5,
+        6,
         &algo_position_accel_process_task_handle,
         1);
 
@@ -82,9 +83,18 @@ void algo_create_tasks()
         "position_photo_encoder_process",
         4096,
         NULL,
-        3,
+        5,
         &algo_position_photo_encoder_process_task_handle,
         0);
+
+    task_utils_create_task(
+        position_process,
+        "position_process",
+        4096,
+        NULL,
+        5,
+        &algo_position_process_task_handle,
+        1);
 }
 
 static void algo_reset()
@@ -160,11 +170,12 @@ void algo_cleanup()
     /**
      * @brief Request stop and delete all internal algo tasks.
      */
+    task_utils_request_delete_task(&algo_position_process_task_handle,
+                                   position_process_request_stop);
     task_utils_request_delete_task(&algo_position_accel_process_task_handle,
                                    position_accel_process_request_stop);
     task_utils_request_delete_task(&algo_position_photo_encoder_process_task_handle,
                                    position_photo_encoder_process_request_stop);
-
     /**
      * @brief Stop receiving data from MPU9255 and reset accel data queue
      * to be empty for next algo start.
@@ -191,8 +202,8 @@ void algo_ble_send()
     algo_ble_data_type ble_data;
 
     ble_data.heading = algo_heading.heading;
-    ble_data.pos_x = algo_position.x;
-    ble_data.pos_y = algo_position.y;
+    ble_data.pos_x = 0;
+    ble_data.pos_y = 0;
 
     xQueueOverwrite(algo_ble_data_queue, &ble_data);
     app_manager_ble_task_notify(TASK_FLAG_ALGO);
@@ -201,7 +212,6 @@ void algo_ble_send()
 void algo_run()
 {
     heading_imu_calculate();
-    position_calculate();
     // desired_heading_caluclate();
     // obstacle_avoidance_calculate();
 

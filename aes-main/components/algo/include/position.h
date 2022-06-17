@@ -5,6 +5,8 @@
 
 #include "task_utils.h"
 
+#include "freertos/queue.h"
+
 // constants
 
 // #define POSITION_RECTANGLE
@@ -18,12 +20,14 @@ typedef struct algo_position_type_tag
 } algo_position_type;
 
 // global variables
-extern algo_position_type algo_position;
+QueueHandle_t position_queue;
 
 // function declarations
 void position_init();
 void position_reset();
-void position_calculate();
+
+TASK position_process();
+void position_process_request_stop();
 
 TASK position_photo_encoder_process();
 void position_photo_encoder_process_request_stop();

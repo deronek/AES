@@ -19,7 +19,7 @@
 #include "ble.h"
 
 // constants
-#define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
+// #define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
 
 // enums
 typedef enum app_manager_state_type_tag
