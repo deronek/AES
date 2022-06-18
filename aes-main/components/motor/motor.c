@@ -1,6 +1,8 @@
 #include "motor.h"
 #include "driver/mcpwm.h"
 
+#include <math.h>
+
 // constants
 #define SPEED 0.5F
 #define PWM_FREQUENCY 50000U
@@ -12,15 +14,27 @@
 #define PWM1_GPIO_NUM GPIO_NUM_17
 #define PWM2_GPIO_NUM GPIO_NUM_16
 
-/**
- * @brief Motor constants.
- */
-#define L (0.0)
-#define R (0.0)
+#define ANGLE_SAFEGUARD(x) (atan2f(sinf(x), cosf(x)))
+#define RAD_TO_DEG (180.0 / M_PI)
+#define DEG_TO_RAD (M_PI / 180.0)
+
+// /**
+//  * @brief Velocity (in m/s) of the robot moving forward when both
+//  * motors are at full speed.
+//  */
+// #define V0 (0.2)
+
+// /**
+//  * @brief Motor constants.
+//  * @todo Fill in the values.
+//  */
+// #define L (0.0)
+// #define R (0.0)
 
 /**
  * @brief Proportional, derivative and integral part
  * coefficients of the motor PID regulator.
+ * @todo Fill in the values.
  */
 #define kP (0.0)
 #define kD (0.0)
@@ -57,7 +71,8 @@ static float old_error = FINISH_HEADING;
 static float error_hat = 0;
 
 // local function declarations
-static void motor_calculate_control();
+static float motor_calculate_pwm1(float omega);
+static float motor_calculate_pwm2(float omega);
 static void motor_perform_control();
 
 // function definitions
@@ -86,7 +101,7 @@ TASK motor_main()
     ;
 }
 
-void motor_calculate_control(motor_control_input_data_type input_data)
+void motor_tick(motor_control_input_data_type input_data)
 {
     // /**
     //  * @brief Calculate omega using current_heading, expected_heading
@@ -102,23 +117,78 @@ void motor_calculate_control(motor_control_input_data_type input_data)
      * @brief Derivative part.
      */
     float error_dot;
+
     /**
-     * @todo Make sure this will not go over [-pi, pi].
-     * Can maybe use atan2f(sinf(error), cosf(error)).
+     * @brief Calculate error and transform it from degrees to radians.
      */
-    float error = input_data.desired_heading - input_data.current_heading;
+    float error = (input_data.desired_heading - input_data.current_heading) * DEG_TO_RAD;
+    /**
+     * @todo Line below makes sure this will not go over [-pi, pi].
+     * This may not be neccessary.
+     */
+    error = ANGLE_SAFEGUARD(error);
+
     error_dot = error - old_error;
     error_hat += error;
     float omega = kP * error + (kD / ALGO_DELTA_TIME) * error_dot + (kI * ALGO_DELTA_TIME) * error_hat;
 
+    /**
+     * @todo Line below makes sure this will not go over [-pi, pi].
+     * This may not be neccessary.
+     */
+    omega = ANGLE_SAFEGUARD(error);
     old_error = error;
 
     /**
-     * @brief Will result in values from 0 to 1.
-     *
+     * @brief PWM calculation will result in values between 0 and 1.
      */
-    motor_control_output_data.pwm1 = (omega + 180.0) / 360.0;
-    motor_control_output_data.pwm1 = -(omega + 180.0) / 360.0;
+    // motor_control_output_data.pwm1 = (omega + 180.0) / 360.0;
+    // motor_control_output_data.pwm1 = -(omega + 180.0) / 360.0;
+
+    motor_control_output_data.pwm1 = motor_calculate_pwm1(omega);
+    motor_control_output_data.pwm2 = motor_calculate_pwm2(omega);
+}
+
+/**
+ * @brief Calculate PWM duty cycle for the left motor.
+ */
+static float motor_calculate_pwm1(float omega)
+{
+    float pwm;
+    if (omega <= (-M_PI / 2))
+    {
+        pwm = 0;
+    }
+    else if ((omega > (-M_PI / 2) && (omega < 0)))
+    {
+        pwm = (2 / M_PI) * omega;
+    }
+    else // omega >= 0
+    {
+        pwm = 1;
+    }
+    return pwm;
+}
+
+/**
+ * @brief Calculate PWM duty cycle for the right motor.
+ */
+static float motor_calculate_pwm2(float omega)
+{
+    float pwm;
+    if (omega <= 0)
+    {
+        pwm = 1;
+    }
+    else if ((omega > 0) && (omega < (M_PI / 2)))
+    {
+        pwm = (-2 / M_PI) * omega;
+    }
+    else // omega >= (M_PI / 2)
+    {
+        pwm = 0;
+    }
+    return pwm;
 }
 
 void motor_perform_control()

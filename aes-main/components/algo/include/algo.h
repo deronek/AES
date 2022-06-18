@@ -43,10 +43,11 @@ typedef struct algo_ble_data_type_tag
 } algo_ble_data_type;
 
 // global variables
-// extern algo_heading_data_type algo_heading;
+// extern algo_heading_data_type algo_current_heading;
 // extern algo_quaternion_type algo_quaternion;
 // extern algo_euler_angles_type algo_euler_angles;
-extern TaskHandle_t algo_position_photo_encoder_process_task_handle,
+extern TaskHandle_t algo_position_process_task_handle,
+    algo_position_photo_encoder_process_task_handle,
     algo_position_accel_process_task_handle;
 extern QueueHandle_t algo_ble_data_queue;
 extern bool algo_running;

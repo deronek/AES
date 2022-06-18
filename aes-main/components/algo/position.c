@@ -198,7 +198,7 @@ TASK position_photo_encoder_process()
          * to also get heading change. Maybe somehow use this
          * to make the position measurement more accurate.
          */
-        volatile float heading = algo_heading.heading;
+        volatile float heading = algo_current_heading;
 
         /**
          * @todo Try to use sincosf instead here, might be faster.
