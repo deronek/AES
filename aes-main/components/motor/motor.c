@@ -5,10 +5,26 @@
 #define SPEED 0.5F
 #define PWM_FREQUENCY 50000U
 
+#define FINISH_HEADING 30.0
+
 #define DIR1_GPIO_NUM GPIO_NUM_18
 #define DIR2_GPIO_NUM GPIO_NUM_5
 #define PWM1_GPIO_NUM GPIO_NUM_17
 #define PWM2_GPIO_NUM GPIO_NUM_16
+
+/**
+ * @brief Motor constants.
+ */
+#define L (0.0)
+#define R (0.0)
+
+/**
+ * @brief Proportional, derivative and integral part
+ * coefficients of the motor PID regulator.
+ */
+#define kP (0.0)
+#define kD (0.0)
+#define kI (0.0)
 
 // structs
 /**
@@ -31,6 +47,14 @@ typedef struct motor_control_output_data_type_tag
 // local variables
 static motor_control_input_data_type motor_control_input_data;
 static motor_control_output_data_type motor_control_output_data;
+
+/**
+ * @brief Variable below should be initialized to desired heading
+ * (since we start from heading 0 degrees).
+ * This will result in error_dot ≈ 0 in first iteration.
+ */
+static float old_error = FINISH_HEADING;
+static float error_hat = 0;
 
 // local function declarations
 static void motor_calculate_control();
@@ -62,21 +86,39 @@ TASK motor_main()
     ;
 }
 
-void motor_calculate_control()
+void motor_calculate_control(motor_control_input_data_type input_data)
 {
-    motor_control_output_data.dir1 = 1;
-    motor_control_output_data.dir2 = 1;
+    // /**
+    //  * @brief Calculate omega using current_heading, expected_heading
+    //  * and a PID regulator.
+    //  * Omega needs to be in rad/s.
+    //  */
+    // float omega = 0.0;
 
-    if (motor_control_input_data.angle >= 0)
-    {
-        motor_control_output_data.pwm1 = SPEED;
-        motor_control_output_data.pwm2 = SPEED * (cosf(2 * motor_control_input_data.angle) + 1) / 2;
-    }
-    else
-    {
-        motor_control_output_data.pwm1 = SPEED * (cosf(2 * motor_control_input_data.angle) + 1) / 2;
-        motor_control_output_data.pwm2 = SPEED;
-    }
+    // float v_left = (2 * SPEED + omega * L) / (2 * R);
+    // float v_right = (2 * SPEED - omega * L) / (2 * R);
+
+    /**
+     * @brief Derivative part.
+     */
+    float error_dot;
+    /**
+     * @todo Make sure this will not go over [-pi, pi].
+     * Can maybe use atan2f(sinf(error), cosf(error)).
+     */
+    float error = input_data.desired_heading - input_data.current_heading;
+    error_dot = error - old_error;
+    error_hat += error;
+    float omega = kP * error + (kD / ALGO_DELTA_TIME) * error_dot + (kI * ALGO_DELTA_TIME) * error_hat;
+
+    old_error = error;
+
+    /**
+     * @brief Will result in values from 0 to 1.
+     *
+     */
+    motor_control_output_data.pwm1 = (omega + 180.0) / 360.0;
+    motor_control_output_data.pwm1 = -(omega + 180.0) / 360.0;
 }
 
 void motor_perform_control()
@@ -86,6 +128,16 @@ void motor_perform_control()
 
     mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A, motor_control_output_data.pwm1);
     mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_B, motor_control_output_data.pwm2);
+}
+
+void motor_reset()
+{
+    motor_control_output_data.pwm1 = 0.0;
+    motor_control_output_data.pwm2 = 0.0;
+    motor_perform_control();
+
+    error_hat = 0.0;
+    old_error = FINISH_HEADING;
 }
 
 void motor_update_control(float current_heading, float expected_heading)
