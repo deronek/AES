@@ -20,7 +20,7 @@ typedef struct algo_position_type_tag
 } algo_position_type;
 
 // global variables
-QueueHandle_t position_queue;
+extern QueueHandle_t algo_position_queue;
 
 // function declarations
 void position_init();

@@ -40,7 +40,7 @@ void desired_heading_init()
 void desired_heading_calculate()
 {
     algo_position_type position;
-    xQueuePeek(algo_position_process_task_handle, &position, 0);
+    xQueuePeek(algo_position_queue, &position, 0);
 
     float a = position.x - x_hat;
     float b = position.y - y_hat;

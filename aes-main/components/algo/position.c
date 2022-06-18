@@ -30,7 +30,7 @@ typedef struct accel_velocity_type_tag
 #define ACCEL_TIMEOUT_TICKS (pdMS_TO_TICKS(ACCEL_TIMEOUT_MS))
 
 // global variables
-QueueHandle_t position_queue;
+QueueHandle_t algo_position_queue;
 
 // local variables
 static QueueHandle_t photo_encoder_position_queue;
@@ -66,8 +66,8 @@ void position_init()
     }
 
     // initialize queue for total calculated position data
-    position_queue = xQueueCreate(1, sizeof(photo_encoder_position_type));
-    if (position_queue == NULL)
+    algo_position_queue = xQueueCreate(1, sizeof(photo_encoder_position_type));
+    if (algo_position_queue == NULL)
     {
         abort();
     }
@@ -83,10 +83,10 @@ TASK position_process()
     algo_position_type position = {0};
 
     /**
-     * @brief Put (0, 0) position into position_queue
+     * @brief Put (0, 0) position into algo_position_queue
      * so that the data can be used in the algorithm.
      */
-    xQueueOverwrite(position_queue, &position);
+    xQueueOverwrite(algo_position_queue, &position);
 
     TickType_t last_wake_time = xTaskGetTickCount();
     for (;;)
@@ -137,12 +137,12 @@ TASK position_process()
         position.y = (POSITION_COMP_FILTER_ALPHA * accel_y) +
                      ((1 - POSITION_COMP_FILTER_ALPHA) * photo_encoder_position.y);
 
-        xQueueOverwriteFromISR(position_queue, &position, NULL);
-        // xQueueOverwrite(position_queue, &position);
+        xQueueOverwriteFromISR(algo_position_queue, &position, NULL);
+        // xQueueOverwrite(algo_position_queue, &position);
         // ESP_LOGI(TAG, "Position stop iter");
         task_utils_sleep_or_warning(&last_wake_time, TASK_TICK_PERIOD, TAG);
     }
-    xQueueReset(position_queue);
+    xQueueReset(algo_position_queue);
 
     ESP_LOGI(TAG, "Suspending position_process");
     xTaskNotifyGive(app_manager_algo_task_handle);
