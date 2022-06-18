@@ -3,7 +3,9 @@
 #include "data_receive.h"
 #include "heading_imu.h"
 #include "position.h"
+#include "desired_heading.h"
 #include "photo_encoder.h"
+#include "motor.h"
 #include "hall.h"
 
 // constants
@@ -13,7 +15,7 @@
 // global variables
 // algo_quaternion_type algo_quaternion;
 // algo_euler_angles_type algo_euler_angles;
-// algo_heading_data_type algo_heading;
+// algo_heading_data_type algo_current_heading;
 // QueueHandle_t algo_heading_data_queue;
 TaskHandle_t algo_position_process_task_handle,
     algo_position_photo_encoder_process_task_handle,
@@ -168,6 +170,10 @@ void algo_cleanup()
 {
     ESP_LOGI(TAG, "Algo cleanup requested");
     /**
+     * @brief Stop the motors first.
+     */
+    motor_reset();
+    /**
      * @brief Request stop and delete all internal algo tasks.
      */
     task_utils_request_delete_task(&algo_position_process_task_handle,
@@ -201,7 +207,7 @@ void algo_ble_send()
 {
     algo_ble_data_type ble_data;
 
-    ble_data.heading = algo_heading.heading;
+    ble_data.heading = algo_current_heading;
     ble_data.pos_x = 0;
     ble_data.pos_y = 0;
 
@@ -212,11 +218,14 @@ void algo_ble_send()
 void algo_run()
 {
     heading_imu_calculate();
-    // desired_heading_caluclate();
+    desired_heading_calculate();
     // obstacle_avoidance_calculate();
 
-    // motor_calculate_control();
-    // motor_perform_control();
+    motor_control_input_data_type motor_control;
+    motor_control.current_heading = algo_current_heading;
+    motor_control.desired_heading = algo_desired_heading;
+
+    motor_tick(motor_control);
 
     /**
      * @todo Send big algo packet (with every calculated data)
@@ -296,10 +305,10 @@ void algo_run()
 
     /*
 
-        algo_heading_data_type algo_heading;
-        algo_heading.heading = (int16_t)(yaw_quat * 10);
+        algo_heading_data_type algo_current_heading;
+        algo_current_heading.heading = (int16_t)(yaw_quat * 10);
 
-        xQueueOverwrite(algo_heading_data_queue, &algo_heading);
+        xQueueOverwrite(algo_heading_data_queue, &algo_current_heading);
         app_manager_ble_task_notify(TASK_FLAG_ALGO);
     */
 

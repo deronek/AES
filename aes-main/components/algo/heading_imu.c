@@ -19,7 +19,7 @@ typedef struct algo_quaternion_type_tag
 } algo_quaternion_type;
 
 // global variables
-algo_heading_data_type algo_heading;
+float algo_current_heading;
 
 // local variables
 static const char *TAG = "algo-heading-imu";
@@ -51,7 +51,7 @@ void heading_imu_calculate()
                                algo_quaternion.z * algo_quaternion.z);
     float heading = atan2f(siny_cosp, cosy_cosp);
     heading *= RAD_TO_DEG;
-    algo_heading.heading = heading;
+    algo_current_heading = heading;
 
     // ESP_LOGI(TAG, "Heading: %.2f", heading);
 }

@@ -5,13 +5,14 @@
 
 // structs
 
-typedef struct algo_heading_data_type_tag
-{
-    float heading;
-} algo_heading_data_type;
+// typedef struct algo_heading_data_type_tag
+// {
+//     float heading;
+// } algo_heading_data_type;
 
 // global variables
-extern algo_heading_data_type algo_heading;
+// extern algo_heading_data_type algo_current_heading;
+extern float algo_current_heading;
 
 // function declarations
 void heading_imu_init();
