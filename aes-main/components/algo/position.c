@@ -13,12 +13,12 @@ typedef struct accel_velocity_type_tag
 } accel_velocity_type;
 
 // constants
-#define COMP_FILTER_ALPHA (0.5)
 #define POSITION_COMP_FILTER_ALPHA (0.5)
 #define G_UNIT_TO_M_S2 (9.80665)
 #define TIME_DELTA_ACCEL (1.0 / 200)
 
 #define ALGO_POSITION_FREQUENCY (10)
+#define ALGO_POSITION_DELTA_TIME (1 / ALGO_POSITION_FREQUENCY)
 #define TASK_TICK_PERIOD (TASK_HZ_TO_TICKS(ALGO_POSITION_FREQUENCY))
 
 #define PHOTO_ENCODER_TIMEOUT_MS (50)
@@ -108,8 +108,8 @@ TASK position_process()
          * than total of the algo task; it might result in more accurate
          * position estimate.
          */
-        float accel_delta_x = accel_velocity.x * ALGO_POSITION_FREQUENCY;
-        float accel_delta_y = accel_velocity.y * ALGO_POSITION_FREQUENCY;
+        float accel_delta_x = accel_velocity.x * ALGO_POSITION_DELTA_TIME;
+        float accel_delta_y = accel_velocity.y * ALGO_POSITION_DELTA_TIME;
 
         /**
          * @brief Get accelerometer position estimate by adding
