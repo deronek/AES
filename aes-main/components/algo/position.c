@@ -3,7 +3,8 @@
 #include "heading_imu.h"
 #include "photo_encoder.h"
 #include "mpu9255.h"
-#include "math.h"
+#include "hp_iir_filter.h"
+#include <math.h>
 
 // structs
 typedef struct accel_velocity_type_tag
@@ -15,6 +16,7 @@ typedef struct accel_velocity_type_tag
 // constants
 #define POSITION_COMP_FILTER_ALPHA (0.5)
 #define G_UNIT_TO_M_S2 (9.80665)
+#define ACCEL_LP_FILTER_ALPHA (0.5)
 #define TIME_DELTA_ACCEL (1.0 / 200)
 
 #define ALGO_POSITION_FREQUENCY (10)
@@ -34,7 +36,10 @@ QueueHandle_t position_queue;
 static QueueHandle_t photo_encoder_position_queue;
 static QueueHandle_t accel_velocity_queue;
 static mpu9255_sensor_data_type accel_data;
-// static comp_iir_filter_type *filter;
+
+static hp_iir_filter_type *accel_lp_filter_x;
+static hp_iir_filter_type *accel_lp_filter_y;
+
 static const char *TAG = "algo-position";
 
 static bool position_process_stop_requested = false;
@@ -60,11 +65,16 @@ void position_init()
         abort();
     }
 
+    // initialize queue for total calculated position data
     position_queue = xQueueCreate(1, sizeof(photo_encoder_position_type));
     if (position_queue == NULL)
     {
         abort();
     }
+
+    // initialize LP IIR filter for accel velocity data
+    accel_lp_filter_x = hp_iir_filter_init(ACCEL_LP_FILTER_ALPHA);
+    accel_lp_filter_y = hp_iir_filter_init(ACCEL_LP_FILTER_ALPHA);
 }
 
 TASK position_process()
@@ -272,6 +282,15 @@ TASK position_accel_process()
 #else
 #error "Define method for accelerometer position integration."
 #endif
+
+        /**
+         * @brief Apply high-pass filter on velocity data.
+         * We only need short-term change of it and we want
+         * to kill any build-up offset.
+         */
+        v.x = hp_iir_filter_step(accel_lp_filter_x, v.x);
+        v.y = hp_iir_filter_step(accel_lp_filter_x, v.y);
+
         // ESP_LOGI(TAG, "x_vel = %.2f", x_vel);
         // ESP_LOGI(TAG, "y_vel = %.2f", y_vel);
         xQueueOverwriteFromISR(accel_velocity_queue, &v, NULL);
