@@ -50,7 +50,6 @@ void heading_imu_calculate()
     float cosy_cosp = 1 - 2 * (algo_quaternion.y * algo_quaternion.y +
                                algo_quaternion.z * algo_quaternion.z);
     float heading = atan2f(siny_cosp, cosy_cosp);
-    heading *= RAD_TO_DEG;
     algo_current_heading = heading;
 
     // ESP_LOGI(TAG, "Heading: %.2f", heading);

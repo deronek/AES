@@ -217,7 +217,7 @@ typedef enum ble_controller_response_id_type_tag
 
 // global variables
 bool ble_running = false;
-TaskHandle_t ble_spp_task_handle;
+QueueHandle_t ble_notify_tx_queue;
 // local variables
 
 static const char *TAG = "ble";
@@ -226,7 +226,7 @@ static const char *TAG = "ble";
 static void ble_receive_data(uint8_t id, uint8_t *packet);
 static void ble_handle_task_notification(uint32_t task_notification_value);
 static uint32_t ble_get_task_id_from_flag(uint32_t task_id);
-static void ble_prepare_and_send_packet_notification(uint32_t task_id);
+static void ble_handle_tx_send(ble_notify_tx_type item);
 static esp_err_t ble_send_data_notification(uint8_t *data, uint8_t len);
 static void ble_handle_indication_packet(esp_ble_gatts_cb_param_t *p_data);
 
@@ -292,27 +292,27 @@ void ble_init()
     esp_ble_gap_register_callback(gap_event_handler);
     esp_ble_gatts_app_register(ESP_SPP_APP_ID);
 
+    /**
+     * @brief Initialize data queues.
+     */
+    ble_notify_tx_queue = xQueueCreate(10, sizeof(ble_notify_tx_type));
+    if (ble_notify_tx_queue == NULL)
+    {
+        abort();
+    }
+
     return;
 }
 
-TASK ble_main()
+TASK ble_notify_main()
 {
     ble_running = true;
     for (;;)
     {
-        /**
-         * @brief
-         * - wait for task notification from any sensor task
-         * - get data from sensor queue
-         * - send that data using ble_send_data_notification()
-         */
-        uint32_t task_notification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        // if (!gatt_get_tcb_by_idx(spp_conn_id))
-        // {
-        //     ESP_LOGW(TAG, "No BLE connection, skip packet");
-        //     continue;
-        // }
-        ble_handle_task_notification(task_notification_value);
+        ble_notify_tx_type item;
+        xQueueReceive(ble_notify_tx_queue, &item, portMAX_DELAY);
+
+        ble_handle_tx_send(item);
     }
 }
 
@@ -610,31 +610,31 @@ TASK ble_heartbeat()
     vTaskDelete(NULL);
 }
 
-void ble_handle_task_notification(uint32_t task_notification_value)
-{
-    /**
-     * @brief Iterate through the task notification value,
-     * one byte at the time,
-     * to send all of the packets which need to be sent.
-     * We start from the LSB (highest priority).
-     * We stop iterating when all requested packets are sent.
-     */
-    uint32_t bitmask = 1;
-    while (task_notification_value)
-    {
-        uint32_t task_flag = task_notification_value & bitmask;
-        if (task_flag)
-        {
-            uint32_t task_id = ble_get_task_id_from_flag(task_flag);
-            ble_prepare_and_send_packet_notification(task_id);
-        }
-        // clear bit of task that we just sent
-        task_notification_value &= ~bitmask;
+// void ble_handle_task_notification(uint32_t task_notification_value)
+// {
+//     /**
+//      * @brief Iterate through the task notification value,
+//      * one byte at the time,
+//      * to send all of the packets which need to be sent.
+//      * We start from the LSB (highest priority).
+//      * We stop iterating when all requested packets are sent.
+//      */
+//     uint32_t bitmask = 1;
+//     while (task_notification_value)
+//     {
+//         uint32_t task_flag = task_notification_value & bitmask;
+//         if (task_flag)
+//         {
+//             uint32_t task_id = ble_get_task_id_from_flag(task_flag);
+//             ble_handle_tx_send(task_id);
+//         }
+//         // clear bit of task that we just sent
+//         task_notification_value &= ~bitmask;
 
-        // shift mask to the next index
-        bitmask <<= 1;
-    }
-}
+//         // shift mask to the next index
+//         bitmask <<= 1;
+//     }
+// }
 
 /**
  * @brief Prepare packet to send via BLE and send it using
@@ -646,7 +646,7 @@ void ble_handle_task_notification(uint32_t task_notification_value)
  * +--------------+---------------------------------------------------+----------+
  * | Byte number  |                      Content                      |   Type   |
  * +--------------+---------------------------------------------------+----------+
- * | 0            | Task ID - app_manager_task_id_type enum value     | uint8_t  |
+ * | 0            | Task ID - ble_task_id_type enum value     | uint8_t  |
  * | 1 to 4       | Timestamp - number of FreeRTOS ticks from startup | uint32_t |
  * | 5            | Number of data bytes - n                          | uint8_t  |
  * | 6 to (n + 6) | Data bytes                                        | varying  |
@@ -654,18 +654,18 @@ void ble_handle_task_notification(uint32_t task_notification_value)
  * +--------------+---------------------------------------------------+----------+
  * @param task_flag
  */
-void ble_prepare_and_send_packet_notification(uint32_t task_id)
+void ble_handle_tx_send(ble_notify_tx_type item)
 {
+    uint32_t task_id = item.source;
     uint8_t data_size = app_manager_task_data_size[task_id];
     uint8_t packet_length = 1 + 4 + 1 + data_size + 1;
 
     uint8_t *packet = malloc(packet_length);
     if (packet == NULL)
     {
-        ESP_LOGE(TAG, "ble_prepare_and_send_packet_notification malloc");
+        ESP_LOGE(TAG, "ble_handle_tx_send malloc");
         abort();
     }
-
     packet[0] = task_id;
 
     uint32_t tick_count = xTaskGetTickCount();
@@ -673,7 +673,8 @@ void ble_prepare_and_send_packet_notification(uint32_t task_id)
 
     packet[5] = data_size;
 
-    ble_receive_data(task_id, packet + 6);
+    memcpy(packet + 6, item.data, data_size);
+    // ble_receive_data(task_id, packet + 6);
 
     /**
      * @todo Implement checksum - hardcoded value for now
@@ -681,58 +682,59 @@ void ble_prepare_and_send_packet_notification(uint32_t task_id)
     packet[packet_length - 1] = 255;
 
     ble_send_data_notification(packet, packet_length);
+    free(item.data);
     free(packet);
 }
 
-#define LT(n) n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n
-static const char LogTable256[256] =
-    {
-        -1, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
-        LT(4), LT(5), LT(5), LT(6), LT(6), LT(6), LT(6),
-        LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7)};
+// #define LT(n) n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n
+// static const char LogTable256[256] =
+//     {
+//         -1, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
+//         LT(4), LT(5), LT(5), LT(6), LT(6), LT(6), LT(6),
+//         LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7)};
 
-uint32_t ble_get_task_id_from_flag(uint32_t task_flag)
-{
-    /**
-     * @brief Implemented using finding log base 2 - most future proof.
-     * http://graphics.stanford.edu/~seander/bithacks.html
-     */
+// uint32_t ble_get_task_id_from_flag(uint32_t task_flag)
+// {
+//     /**
+//      * @brief Implemented using finding log base 2 - most future proof.
+//      * http://graphics.stanford.edu/~seander/bithacks.html
+//      */
 
-    unsigned int v = task_flag;  // 32-bit word to find the log of
-    unsigned r;                  // r will be lg(v)
-    register unsigned int t, tt; // temporaries
+//     unsigned int v = task_flag;  // 32-bit word to find the log of
+//     unsigned r;                  // r will be lg(v)
+//     register unsigned int t, tt; // temporaries
 
-    if ((tt = v >> 16))
-    {
-        r = (t = tt >> 8) ? 24 + LogTable256[t] : 16 + LogTable256[tt];
-    }
-    else
-    {
-        r = (t = v >> 8) ? 8 + LogTable256[t] : LogTable256[v];
-    }
+//     if ((tt = v >> 16))
+//     {
+//         r = (t = tt >> 8) ? 24 + LogTable256[t] : 16 + LogTable256[tt];
+//     }
+//     else
+//     {
+//         r = (t = v >> 8) ? 8 + LogTable256[t] : LogTable256[v];
+//     }
 
-    return r;
-}
+//     return r;
+// }
 
-void ble_receive_data(uint8_t id, uint8_t *destination)
-{
-    QueueHandle_t queue;
-    switch (id)
-    {
-    case TASK_ID_HC_SR04:
-        queue = hc_sr04_queue_data;
-        break;
-    case TASK_ID_MPU9255:
-        queue = mpu9255_queue_quaternion_data;
-        break;
-    case TASK_ID_ALGO:
-        queue = algo_ble_data_queue;
-        break;
-    default:
-        abort();
-    }
-    xQueuePeek(queue, destination, 0);
-}
+// void ble_receive_data(uint8_t id, uint8_t *destination)
+// {
+//     QueueHandle_t queue;
+//     switch (id)
+//     {
+//     case TASK_ID_HC_SR04:
+//         queue = hc_sr04_queue_data;
+//         break;
+//     case TASK_ID_MPU9255:
+//         queue = mpu9255_queue_quaternion_data;
+//         break;
+//     case TASK_ID_ALGO:
+//         queue = algo_ble_data_queue;
+//         break;
+//     default:
+//         abort();
+//     }
+//     xQueuePeek(queue, destination, 0);
+// }
 
 esp_err_t ble_send_data_notification(uint8_t *packet, uint8_t packet_length)
 {
@@ -784,4 +786,24 @@ void ble_handle_indication_packet(esp_ble_gatts_cb_param_t *p_data)
     /**
      * @todo Implement response to controller application here.
      */
+}
+
+void ble_send_from_task(ble_task_id_type source, void *data)
+{
+    if (!is_connected)
+    {
+        return;
+    }
+
+    ble_notify_tx_type item;
+    item.source = source;
+    uint8_t data_size = app_manager_task_data_size[source];
+
+    item.data = malloc(data_size);
+    if (item.data == NULL)
+    {
+        abort();
+    }
+    memcpy(item.data, data, data_size);
+    xQueueSend(ble_notify_tx_queue, &item, BLE_NOTIFY_TX_TIMEOUT);
 }

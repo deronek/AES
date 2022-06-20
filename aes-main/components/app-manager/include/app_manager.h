@@ -32,29 +32,24 @@ typedef enum app_manager_state_type_tag
     APP_MANAGER_FAIL
 } app_manager_state_type;
 
-/**
- * @brief Task ID used for BLE frame distinction
- */
-typedef enum app_manager_task_id_type_tag
-{
-    TASK_ID_HC_SR04 = 0,
-    TASK_ID_MPU9255 = 1,
-    TASK_ID_ALGO = 2,
-    TASK_ID_BLE = 3,
-} app_manager_task_id_type;
+// typedef enum app_manager_task_flag_type_tag
+// {
+//     TASK_FLAG_HC_SR04 = (1 << TASK_ID_HC_SR04),
+//     TASK_FLAG_MPU9255 = (1 << TASK_ID_MPU9255),
+//     TASK_FLAG_ALGO = (1 << TASK_ID_ALGO)
+// } app_manager_task_flag_type;
 
-typedef enum app_manager_task_flag_type_tag
+typedef struct app_manager_ble_data_type_tag
 {
-    TASK_FLAG_HC_SR04 = (1 << TASK_ID_HC_SR04),
-    TASK_FLAG_MPU9255 = (1 << TASK_ID_MPU9255),
-    TASK_FLAG_ALGO = (1 << TASK_ID_ALGO)
-} app_manager_task_flag_type;
+    app_manager_state_type state;
+} app_manager_ble_data_type;
 
 typedef enum app_manager_event_id_type_tag
 {
     EVENT_REQUEST_START,
     EVENT_REQUEST_STOP,
-    EVENT_FINISHED,
+    EVENT_STARTED_DRIVING,
+    EVENT_FINISHED_DRIVING,
     EVENT_FAIL,
 } app_manager_event_id_type;
 
@@ -62,7 +57,7 @@ typedef enum app_manager_event_id_type_tag
 
 typedef struct app_manager_event_type_tag
 {
-    app_manager_task_id_type source;
+    ble_task_id_type source;
     app_manager_event_id_type type;
 } app_manager_event_type;
 
@@ -84,7 +79,8 @@ extern const uint8_t app_manager_task_data_size[];
 TASK app_manager_init();
 TASK app_manager_main();
 void app_manager_start_driving();
-void app_manager_algo_task_notify(app_manager_task_flag_type task_flag);
-void app_manager_ble_task_notify(app_manager_task_flag_type task_flag);
+void app_manager_notify_main(ble_task_id_type source, app_manager_event_id_type event_id);
+// void app_manager_algo_task_notify(app_manager_task_flag_type task_flag);
+// void app_manager_ble_task_notify(app_manager_task_flag_type task_flag);
 
 #endif

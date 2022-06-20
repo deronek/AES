@@ -33,14 +33,19 @@ lp_fir_filter_type *lp_fir_filter_init(float alpha)
     filter->coeffs[5] = 0.14593537253343006;
     filter->coeffs[6] = -0.03294492055238773;
 
+    lp_fir_filter_reset(filter);
+
+    return filter;
+}
+
+void lp_fir_filter_reset(lp_fir_filter_type *filter)
+{
     filter->x_old[0] = 0.0;
     filter->x_old[1] = 0.0;
     filter->x_old[2] = 0.0;
     filter->x_old[3] = 0.0;
     filter->x_old[4] = 0.0;
     filter->x_old[5] = 0.0;
-
-    return filter;
 }
 
 float lp_fir_filter_step(lp_fir_filter_type *filter, float xn)

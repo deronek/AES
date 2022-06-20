@@ -3,7 +3,10 @@
 #include "driver/i2c.h"
 #include "freertos/semphr.h"
 
+#include "app_manager.h"
 #include "i2c.h"
+
+#include <string.h>
 
 // global variables
 QueueHandle_t mpu9255_queue_quaternion_data;
