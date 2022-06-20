@@ -11,7 +11,7 @@
 #include "freertos/task.h"
 #include "xtensa/hal.h"
 
-#include "app_manager.h"
+// #include "app_manager.h"
 #include "task_utils.h"
 
 // constants

@@ -4,10 +4,16 @@
 #include "data_receive.h"
 #include "position.h"
 
+// constants
+
+#define RAD_TO_DEG (180.0 / M_PI)
+#define DEG_TO_RAD (M_PI / 180.0)
+
 // global variables
 float algo_desired_heading;
 
 // local variables
+static const char *TAG = "algo-desired-heading";
 
 /**
  * @brief Refactor all of below data as parameters (maybe passed via BLE).
@@ -41,8 +47,9 @@ void desired_heading_init()
 
 void desired_heading_calculate()
 {
-    float a = algo_position.x - x_hat;
-    float b = algo_position.y - y_hat;
+    float a = xf - algo_position.x;
+    float b = yf - algo_position.y;
 
-    algo_desired_heading = atan2f(b, a);
+    algo_desired_heading = atan2f(a, b);
+    ESP_LOGI(TAG, "Desired heading: %.2f", RAD_TO_DEG * algo_desired_heading);
 }

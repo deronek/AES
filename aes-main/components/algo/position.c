@@ -6,6 +6,8 @@
 #include "hp_iir_filter.h"
 #include "lp_fir_filter.h"
 
+#include "app_manager.h"
+
 #include <math.h>
 
 // structs
@@ -44,8 +46,8 @@ static QueueHandle_t photo_encoder_position_queue;
 static QueueHandle_t accel_velocity_queue;
 static mpu9255_sensor_data_type accel_data;
 
-static hp_iir_filter_type *accel_hp_filter_x;
-static hp_iir_filter_type *accel_hp_filter_y;
+// static hp_iir_filter_type *accel_hp_filter_x;
+// static hp_iir_filter_type *accel_hp_filter_y;
 
 static lp_fir_filter_type *accel_lp_filter_x;
 static lp_fir_filter_type *accel_lp_filter_y;
@@ -85,7 +87,6 @@ void position_init()
     // initialize high-pass and low-pass IIR filter for accel velocity data
     // accel_hp_filter_x = hp_iir_filter_init(ACCEL_HP_FILTER_ALPHA);
     // accel_hp_filter_y = hp_iir_filter_init(ACCEL_HP_FILTER_ALPHA);
-
     accel_lp_filter_x = lp_fir_filter_init(ACCEL_LP_FILTER_ALPHA);
     accel_lp_filter_y = lp_fir_filter_init(ACCEL_LP_FILTER_ALPHA);
 }
@@ -150,7 +151,7 @@ TASK position_process()
         position.y = (POSITION_COMP_FILTER_ALPHA * accel_y) +
                      ((1 - POSITION_COMP_FILTER_ALPHA) * photo_encoder_position.y);
 
-        ESP_LOGI(TAG, "x: %.2f cm, y: %.2f cm", accel_velocity.x * 100, accel_velocity.y * 100);
+        ESP_LOGI(TAG, "x: %.2f cm, y: %.2f cm", position.x * 100, position.y * 100);
 
         xQueueOverwriteFromISR(algo_position_queue, &position, NULL);
         // xQueueOverwrite(algo_position_queue, &position);
@@ -346,8 +347,8 @@ void position_reset()
     photo_encoder_process_stop_requested = false;
     accel_process_stop_requested = false;
 
-    free(accel_lp_filter_x);
-    free(accel_lp_filter_y);
+    lp_fir_filter_reset(accel_lp_filter_x);
+    lp_fir_filter_reset(accel_lp_filter_y);
 }
 
 void position_process_request_stop()

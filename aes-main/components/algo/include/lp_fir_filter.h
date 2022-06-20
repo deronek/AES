@@ -15,5 +15,6 @@ typedef struct lp_fir_filter_type_tag lp_fir_filter_type;
 // function declarations
 lp_fir_filter_type *lp_fir_filter_init(float alpha);
 float lp_fir_filter_step(lp_fir_filter_type *filter, float xn);
+void lp_fir_filter_reset(lp_fir_filter_type *filter);
 
 #endif

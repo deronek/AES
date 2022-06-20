@@ -1,4 +1,6 @@
 #include "motor.h"
+
+#include "algo.h"
 #include "driver/mcpwm.h"
 
 #include <math.h>
@@ -7,7 +9,14 @@
 #define SPEED 0.5F
 #define PWM_FREQUENCY 50000U
 
-#define FINISH_HEADING 30.0
+#define RAD_TO_DEG (180.0 / M_PI)
+#define DEG_TO_RAD (M_PI / 180.0)
+
+/**
+ * @brief This needs to refactored, because we probably will not
+ * use finish heading, but end point.
+ */
+#define FINISH_HEADING (30.0 * DEG_TO_RAD)
 
 #define DIR1_GPIO_NUM GPIO_NUM_18
 #define DIR2_GPIO_NUM GPIO_NUM_5
@@ -36,9 +45,9 @@
  * coefficients of the motor PID regulator.
  * @todo Fill in the values.
  */
-#define kP (0.0)
-#define kD (0.0)
-#define kI (0.0)
+#define kP (1.0)
+#define kD (0.1)
+#define kI (0.1)
 
 // structs
 /**
@@ -59,6 +68,7 @@ typedef struct motor_control_output_data_type_tag
 } motor_control_output_data_type;
 
 // local variables
+static const char *TAG = "motor";
 static motor_control_input_data_type motor_control_input_data;
 static motor_control_output_data_type motor_control_output_data;
 
@@ -121,7 +131,7 @@ void motor_tick(motor_control_input_data_type input_data)
     /**
      * @brief Calculate error and transform it from degrees to radians.
      */
-    float error = (input_data.desired_heading - input_data.current_heading) * DEG_TO_RAD;
+    float error = (input_data.desired_heading - input_data.current_heading);
     /**
      * @todo Line below makes sure this will not go over [-pi, pi].
      * This may not be neccessary.
@@ -138,6 +148,8 @@ void motor_tick(motor_control_input_data_type input_data)
      */
     omega = ANGLE_SAFEGUARD(error);
     old_error = error;
+
+    ESP_LOGI(TAG, "Omega: %.2f", omega * RAD_TO_DEG);
 
     /**
      * @brief PWM calculation will result in values between 0 and 1.

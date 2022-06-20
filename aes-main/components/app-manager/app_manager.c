@@ -15,7 +15,9 @@ QueueHandle_t app_manager_event_queue;
 const uint8_t app_manager_task_data_size[] = {
     sizeof(hc_sr04_data_type),
     sizeof(mpu9255_quaternion_data_type),
-    sizeof(algo_ble_data_type)};
+    sizeof(algo_ble_data_type),
+    0, // BLE task does not send data on its own
+    sizeof(app_manager_ble_data_type)};
 
 // local variables
 static const char *TAG = "app_manager";
@@ -24,6 +26,7 @@ TaskHandle_t app_manager_algo_task_handle,
     app_manager_mpu9255_task_handle,
     app_manager_main_task_handle,
     app_manager_hc_sr04_task_handle,
+    app_manager_state_send_task_handle,
     app_manager_ble_main_task_handle,
     app_manager_ble_heartbeat_task_handle,
     app_manager_init_task_handle;
@@ -35,10 +38,12 @@ static void app_manager_init_peripherals();
 static void app_manager_i2c_init();
 static void app_manager_create_ble_main_task();
 static void app_manager_create_ble_heartbeat_task();
+static void app_manager_create_state_send_task();
 static void app_manager_create_sensor_tasks();
 static void app_manager_create_main_task();
 static void app_manager_create_algo_task();
-static void app_manager_task_notify();
+
+static TASK app_manager_state_send();
 
 // function definitions
 inline static void log_abort_wrong_state(const char *state)
@@ -46,10 +51,10 @@ inline static void log_abort_wrong_state(const char *state)
     ESP_LOGE(TAG, "app_manager_state == %s in main loop", state);
     abort();
 }
-static void app_manager_task_notify(TaskHandle_t task_handle, app_manager_task_flag_type task_flag)
-{
-    xTaskNotify(task_handle, task_flag, eSetBits);
-}
+// static void app_manager_task_notify(TaskHandle_t task_handle, app_manager_task_flag_type task_flag)
+// {
+//     xTaskNotify(task_handle, task_flag, eSetBits);
+// }
 
 TASK app_manager_init()
 {
@@ -60,6 +65,7 @@ TASK app_manager_init()
     app_manager_init_peripherals();
     app_manager_create_ble_main_task();
     app_manager_create_ble_heartbeat_task();
+    app_manager_create_state_send_task();
     app_manager_create_sensor_tasks();
     app_manager_create_main_task();
 
@@ -116,12 +122,24 @@ void app_manager_i2c_init()
 void app_manager_create_ble_main_task()
 {
     task_utils_create_task(
-        ble_main,
-        "ble_main",
+        ble_notify_main,
+        "ble_notify_main",
         4096,
         NULL,
         3,
         &app_manager_ble_main_task_handle,
+        0);
+}
+
+void app_manager_create_state_send_task()
+{
+    task_utils_create_task(
+        app_manager_state_send,
+        "app_manager_state_send",
+        2048,
+        NULL,
+        2,
+        &app_manager_state_send_task_handle,
         0);
 }
 
@@ -193,7 +211,7 @@ void app_manager_create_algo_task()
 void app_manager_start_driving()
 {
     app_manager_create_algo_task();
-    app_manager_state = APP_MANAGER_DRIVING;
+    app_manager_state = APP_MANAGER_CALIBRATING;
 }
 
 void app_manager_stop_driving()
@@ -205,6 +223,19 @@ void app_manager_stop_driving()
     else
     {
         ESP_LOGE(TAG, "Algo task handle empty");
+    }
+}
+
+TASK app_manager_state_send()
+{
+    for (;;)
+    {
+        app_manager_ble_data_type data;
+        data.state = app_manager_state;
+
+        ble_send_from_task(TASK_ID_APP_MANAGER, &data);
+
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -235,7 +266,6 @@ TASK app_manager_main()
         // vTaskDelay(5000);
         app_manager_event_type event;
         xQueueReceive(app_manager_event_queue, &event, portMAX_DELAY);
-
         /**
          * @todo Check app manager state here and handle response to controller app.
          */
@@ -246,6 +276,10 @@ TASK app_manager_main()
             {
                 break;
             }
+            if (app_manager_state != APP_MANAGER_READY && app_manager_state != APP_MANAGER_FINISHED)
+            {
+                break;
+            }
             app_manager_start_driving();
             break;
         case EVENT_REQUEST_STOP:
@@ -253,15 +287,40 @@ TASK app_manager_main()
             {
                 break;
             }
+            if (app_manager_state != APP_MANAGER_DRIVING)
+            {
+                break;
+            }
             app_manager_stop_driving();
             break;
-        case EVENT_FINISHED:
+        case EVENT_STARTED_DRIVING:
             if (event.source != TASK_ID_ALGO)
             {
                 break;
             }
+            if (app_manager_state != APP_MANAGER_CALIBRATING)
+            {
+                break;
+            }
+            ESP_LOGI(TAG, "Started driving");
+            app_manager_state = APP_MANAGER_DRIVING;
+            break;
+        case EVENT_FINISHED_DRIVING:
+            if (event.source != TASK_ID_ALGO)
+            {
+                break;
+            }
+            if (app_manager_state != APP_MANAGER_DRIVING)
+            {
+                break;
+            }
+            ESP_LOGI(TAG, "Finished driving");
+            app_manager_state = APP_MANAGER_FINISHED;
             break;
         case EVENT_FAIL:
+            break;
+        default:
+            ESP_LOGW(TAG, "Unsupported app_manager_event_type");
             break;
         }
     }
@@ -335,18 +394,33 @@ void app_manager_update_state()
     }
 }
 
-void app_manager_algo_task_notify(app_manager_task_flag_type task_flag)
+void app_manager_notify_main(ble_task_id_type source, app_manager_event_id_type event_id)
 {
-    if (algo_running)
+    BaseType_t retval;
+
+    app_manager_event_type event;
+    event.source = source;
+    event.type = event_id;
+
+    retval = xQueueSend(app_manager_event_queue, &event, 0);
+    if (retval != pdPASS)
     {
-        app_manager_task_notify(app_manager_algo_task_handle, task_flag);
+        ESP_LOGE(TAG, "app_manager_event_queue full");
     }
 }
 
-void app_manager_ble_task_notify(app_manager_task_flag_type task_flag)
-{
-    if (ble_is_connected())
-    {
-        app_manager_task_notify(app_manager_ble_main_task_handle, task_flag);
-    }
-}
+// void app_manager_algo_task_notify(app_manager_task_flag_type task_flag)
+// {
+// if (algo_running)
+// {
+//     app_manager_task_notify(app_manager_algo_task_handle, task_flag);
+// }
+// }
+
+// void app_manager_ble_task_notify(app_manager_task_flag_type task_flag)
+// {
+// if (ble_is_connected())
+// {
+//     app_manager_task_notify(app_manager_ble_main_task_handle, task_flag);
+// }
+// }

@@ -1,5 +1,6 @@
 #include "algo.h"
 
+#include "ble.h"
 #include "data_receive.h"
 #include "heading_imu.h"
 #include "position.h"
@@ -22,7 +23,7 @@ TaskHandle_t algo_position_process_task_handle,
     algo_position_accel_process_task_handle;
 QueueHandle_t algo_ble_data_queue;
 
-/**
+/**b
  * @todo Refactor this with getter
  */
 bool algo_running = false;
@@ -41,11 +42,13 @@ float phiHat_rad = 0.0f;
 float thetaHat_rad = 0.0f;
 
 // constants
+#define RAD_TO_DEG (180.0 / M_PI)
+#define DEG_TO_RAD (M_PI / 180.0)
 #define TASK_TICK_PERIOD TASK_HZ_TO_TICKS(ALGO_FREQUENCY)
 
 // function declarations
 static void algo_ble_send();
-static void algo_reset();
+static void algo_prepare();
 static void algo_create_tasks();
 // static void algo_update_quaternion();
 // static float algo_low_pass_tick(float xn);
@@ -101,7 +104,7 @@ void algo_create_tasks()
         1);
 }
 
-static void algo_reset()
+static void algo_prepare()
 {
     /**
      * @brief MPU9255
@@ -125,11 +128,12 @@ static void algo_reset()
 
 TASK algo_main()
 {
-    algo_reset();
+    algo_prepare();
     algo_create_tasks();
 
     vTaskDelay(pdMS_TO_TICKS(50));
     algo_running = true;
+    app_manager_notify_main(TASK_ID_ALGO, EVENT_STARTED_DRIVING);
 
     // get start time of this iteration
     TickType_t last_wake_time = xTaskGetTickCount();
@@ -151,9 +155,7 @@ TASK algo_main()
         algo_data_receive_get_latest();
 
         algo_run();
-
         algo_ble_send();
-
         /**
          * @brief We want to run algo calculations at least with ALGO_FREQUENCY.
          * If we do not meet that time, signal a warning.
@@ -164,7 +166,16 @@ TASK algo_main()
     algo_cleanup();
     algo_running = false;
 
+    /**
+     * @brief Notify about driving state.
+     */
+    app_manager_notify_main(TASK_ID_ALGO, EVENT_FINISHED_DRIVING);
+
+    /**
+     * @brief Notify that task is ready to be deleted.
+     */
     xTaskNotifyGive(app_manager_main_task_handle);
+
     vTaskSuspend(NULL);
 }
 
@@ -209,12 +220,11 @@ void algo_ble_send()
 {
     algo_ble_data_type ble_data;
 
-    ble_data.heading = algo_current_heading;
+    ble_data.heading = algo_current_heading * RAD_TO_DEG;
     ble_data.pos_x = algo_position.x;
     ble_data.pos_y = algo_position.x;
 
-    xQueueOverwrite(algo_ble_data_queue, &ble_data);
-    app_manager_ble_task_notify(TASK_FLAG_ALGO);
+    ble_send_from_task(TASK_ID_ALGO, &ble_data);
 }
 
 void algo_run()

@@ -14,7 +14,6 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "task_utils.h"
-#include "app_manager.h"
 
 // constants
 #define MPU9255_AXIS_NUMBER 3
