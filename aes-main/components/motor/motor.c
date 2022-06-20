@@ -209,24 +209,3 @@ void motor_reset()
     error_hat = 0.0;
     old_error = FINISH_HEADING;
 }
-
-void motor_update_control(float current_heading, float expected_heading)
-{
-    // drive forward if current_heading == expected_heading
-    // rotate clockwise when current_heading > expected_heading
-    // rotate counterclockwise when current_heading < expected_heading
-
-    /**
-     * @todo Implement interpolation array
-     * X: heading difference [deg]
-     * Y: turn "strength" [%]
-     */
-
-    /**
-     * @todo Total heading computation
-     * Function of:
-     * - angle to obstacle
-     * - angle to goal (calculated from current heading and expected heading)
-     * Outputs angle towards which we should drive
-     */
-}

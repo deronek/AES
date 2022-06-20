@@ -67,6 +67,8 @@ void algo_init()
     position_init();
     photo_encoder_init();
     heading_imu_init();
+    desired_heading_init();
+    motor_init();
 }
 
 void algo_create_tasks()
@@ -221,11 +223,11 @@ void algo_run()
     desired_heading_calculate();
     // obstacle_avoidance_calculate();
 
-    // motor_control_input_data_type motor_control;
-    // motor_control.current_heading = algo_current_heading;
-    // motor_control.desired_heading = algo_desired_heading;
+    motor_control_input_data_type motor_control;
+    motor_control.current_heading = algo_current_heading;
+    motor_control.desired_heading = algo_desired_heading;
 
-    // motor_tick(motor_control);
+    motor_tick(motor_control);
 
     /**
      * @todo Send big algo packet (with every calculated data)

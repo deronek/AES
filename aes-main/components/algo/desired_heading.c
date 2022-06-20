@@ -24,15 +24,15 @@ static float ys = 0.0;
 /**
  * @brief (xf, yf) - coordinates of the finish point.
  */
-static float xf = 0.0;
-static float yf = 0.0;
+static float xf = 2.0;
+static float yf = 6.6;
 
 /**
  * @brief (x_hat, y_hat) - length and with of the play area.
  */
 #define INCH_TO_CM
-static float x_hat = 0.0;
-static float y_hat = 0.0;
+static float x_hat = 3.96;
+static float y_hat = 6.6;
 
 // function definitions
 void desired_heading_init()
