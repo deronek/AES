@@ -4,7 +4,7 @@
 #include "photo_encoder.h"
 #include "mpu9255.h"
 #include "hp_iir_filter.h"
-#include "lp_iir_filter.h"
+#include "lp_fir_filter.h"
 
 #include <math.h>
 
@@ -47,8 +47,8 @@ static mpu9255_sensor_data_type accel_data;
 static hp_iir_filter_type *accel_hp_filter_x;
 static hp_iir_filter_type *accel_hp_filter_y;
 
-static lp_iir_filter_type *accel_lp_filter_x;
-static lp_iir_filter_type *accel_lp_filter_y;
+static lp_fir_filter_type *accel_lp_filter_x;
+static lp_fir_filter_type *accel_lp_filter_y;
 
 static const char *TAG = "algo-position";
 
@@ -86,8 +86,8 @@ void position_init()
     // accel_hp_filter_x = hp_iir_filter_init(ACCEL_HP_FILTER_ALPHA);
     // accel_hp_filter_y = hp_iir_filter_init(ACCEL_HP_FILTER_ALPHA);
 
-    accel_lp_filter_x = lp_iir_filter_init(ACCEL_LP_FILTER_ALPHA);
-    accel_lp_filter_y = lp_iir_filter_init(ACCEL_LP_FILTER_ALPHA);
+    accel_lp_filter_x = lp_fir_filter_init(ACCEL_LP_FILTER_ALPHA);
+    accel_lp_filter_y = lp_fir_filter_init(ACCEL_LP_FILTER_ALPHA);
 }
 
 TASK position_process()
@@ -319,8 +319,8 @@ TASK position_accel_process()
          * from the current data.
          * @todo Should use more samples in this filter.
          */
-        v.x -= lp_iir_filter_step(accel_lp_filter_x, v.x);
-        v.y -= lp_iir_filter_step(accel_lp_filter_y, v.y);
+        v.x -= lp_fir_filter_step(accel_lp_filter_x, v.x);
+        v.y -= lp_fir_filter_step(accel_lp_filter_y, v.y);
         // v.x = hp_iir_filter_step(accel_hp_filter_x, v.x);
         // v.y = hp_iir_filter_step(accel_hp_filter_y, v.y);
 
@@ -345,6 +345,9 @@ void position_reset()
     position_process_stop_requested = false;
     photo_encoder_process_stop_requested = false;
     accel_process_stop_requested = false;
+
+    free(accel_lp_filter_x);
+    free(accel_lp_filter_y);
 }
 
 void position_process_request_stop()
