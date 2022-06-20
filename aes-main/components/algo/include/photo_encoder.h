@@ -5,7 +5,8 @@
 
 // #include "esp_err.h"
 // #include "freertos/task.h"
-// #include "freertos/queue.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 
 // constants
 
@@ -18,13 +19,13 @@
 #define DISTANCE_STRIPE_M (DISTANCE_STRIPE_UM / 1000000.0)
 
 // enums
-typedef enum photo_encoder_notify_type_tag
+typedef enum photo_encoder_event_type_tag
 {
     PHOTO_ENCODER_L_WIDTH,
     PHOTO_ENCODER_L_DISTANCE,
     PHOTO_ENCODER_R_WIDTH,
     PHOTO_ENCODER_R_DISTANCE,
-} photo_encoder_notify_type;
+} photo_encoder_event_type;
 
 // structs
 typedef struct photo_encoder_position_type_tag
@@ -34,6 +35,7 @@ typedef struct photo_encoder_position_type_tag
 } photo_encoder_position_type;
 
 // global variables
+extern QueueHandle_t photo_encoder_event_queue;
 // extern QueueHandle_t photo_encoder_queue;
 // extern photo_encoder_distance_type photo_encoder_distance;
 

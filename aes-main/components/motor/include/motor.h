@@ -29,8 +29,8 @@
  */
 typedef struct motor_control_input_data_type_tag
 {
-    float speed;
-    float angle;
+    float current_heading;
+    float desired_heading;
 } motor_control_input_data_type;
 
 // global variables
@@ -40,6 +40,7 @@ typedef struct motor_control_input_data_type_tag
 // function declarations
 
 void motor_init();
-TASK motor_main();
+void motor_tick();
+void motor_reset();
 
 #endif

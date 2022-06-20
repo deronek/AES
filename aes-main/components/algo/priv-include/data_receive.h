@@ -12,6 +12,8 @@
 #include "task_utils.h"
 #include "hc_sr04.h"
 
+#include "position.h"
+
 // constants
 
 // enums
@@ -28,6 +30,7 @@
  * application code except algo features.
  */
 extern mpu9255_quaternion_data_type algo_mpu9255_quaternion_data;
+extern algo_position_type algo_position;
 // extern photo_encoder_position_type algo_photo_encoder_position;
 extern hc_sr04_data_type algo_hc_sr04_data;
 
