@@ -1,6 +1,7 @@
 #include "desired_heading.h"
 
 #include "algo.h"
+#include "data_receive.h"
 #include "position.h"
 
 // global variables
@@ -29,6 +30,7 @@ static float yf = 0.0;
 /**
  * @brief (x_hat, y_hat) - length and with of the play area.
  */
+#define INCH_TO_CM
 static float x_hat = 0.0;
 static float y_hat = 0.0;
 
@@ -39,11 +41,8 @@ void desired_heading_init()
 
 void desired_heading_calculate()
 {
-    algo_position_type position;
-    xQueuePeek(algo_position_queue, &position, 0);
-
-    float a = position.x - x_hat;
-    float b = position.y - y_hat;
+    float a = algo_position.x - x_hat;
+    float b = algo_position.y - y_hat;
 
     algo_desired_heading = atan2f(b, a);
 }

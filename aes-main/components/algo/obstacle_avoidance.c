@@ -31,6 +31,13 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
+/**
+ * @brief HC-SR04 sensor regions - start angles
+ * Sector are numbered from left to right, from 0 to 7.
+ */
+static const float hc_sr04_sensor_regions[NUMBER_OF_HC_SR04_SENSORS] = {
+    90, 67.5, 45, 22.5, 0, -22.5, -45, -67.5};
+
 // local variables
 float *danger_intensities;
 float *danger_levels;
@@ -90,6 +97,26 @@ void obstacle_avoidance_calculate()
      * - if we are close to the obstacle, we will drive to it
      * - if not, we just follow planning heading angle
      */
+}
+
+void calculate_sector_from_heading(float heading)
+{
+    if (heading >= hc_sr04_sensor_regions[1])
+    {
+        return 0;
+    }
+    if (heading <= hc_sr04_sensor_regions[NUMBER_OF_HC_SR04_SENSORS - 1])
+    {
+        return NUMBER_OF_HC_SR04_SENSORS - 1;
+    }
+
+    for (int i = 1; i < NUMBER_OF_HC_SR04_SENSORS - 1; ++i)
+    {
+        if (heading <= hc_sr04_sensor_regions[i] && heading >= hc_sr04_sensor_regions[i + 1])
+        {
+            return i;
+        }
+    }
 }
 
 void calculate_danger_intensities()

@@ -9,9 +9,6 @@
 
 // constants
 
-// #define POSITION_RECTANGLE
-#define POSITION_TRAPEZOIDAL
-
 // structs
 typedef struct algo_position_type_tag
 {

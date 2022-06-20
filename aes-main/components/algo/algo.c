@@ -208,8 +208,8 @@ void algo_ble_send()
     algo_ble_data_type ble_data;
 
     ble_data.heading = algo_current_heading;
-    ble_data.pos_x = 0;
-    ble_data.pos_y = 0;
+    ble_data.pos_x = algo_position.x;
+    ble_data.pos_y = algo_position.x;
 
     xQueueOverwrite(algo_ble_data_queue, &ble_data);
     app_manager_ble_task_notify(TASK_FLAG_ALGO);
@@ -221,11 +221,11 @@ void algo_run()
     desired_heading_calculate();
     // obstacle_avoidance_calculate();
 
-    motor_control_input_data_type motor_control;
-    motor_control.current_heading = algo_current_heading;
-    motor_control.desired_heading = algo_desired_heading;
+    // motor_control_input_data_type motor_control;
+    // motor_control.current_heading = algo_current_heading;
+    // motor_control.desired_heading = algo_desired_heading;
 
-    motor_tick(motor_control);
+    // motor_tick(motor_control);
 
     /**
      * @todo Send big algo packet (with every calculated data)

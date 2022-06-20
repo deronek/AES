@@ -7,10 +7,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
-#include "hal/gpio_types.h"
+// #include "hal/gpio_types.h"
 
-#define PHOTO_ENCODER_GPIO_PIN_L GPIO_NUM_4
-#define PHOTO_ENCODER_GPIO_PIN_R GPIO_NUM_2
+#define PHOTO_ENCODER_GPIO_PIN_L (GPIO_NUM_4)
+#define PHOTO_ENCODER_GPIO_PIN_R (GPIO_NUM_2)
 
 // constants
 
@@ -34,8 +34,10 @@
 // } photo_encoder_distance_type;
 
 // global variables
+QueueHandle_t photo_encoder_event_queue;
 
 // local variables
+static const char *TAG = "photo-encoder";
 // static QueueHandle_t photo_encoder_queue;
 // static photo_encoder_distance_type photo_encoder_distance;
 
@@ -50,49 +52,51 @@ static void photo_encoder_r_isr(void *arg);
 
 static void photo_encoder_l_isr(void *arg)
 {
+    BaseType_t retval;
     BaseType_t higher_task_woken = pdFALSE;
     int level = gpio_get_level(PHOTO_ENCODER_GPIO_PIN_L);
-    photo_encoder_notify_type notify_type;
+    photo_encoder_event_type event_type;
 
     if (level)
     {
-        notify_type = PHOTO_ENCODER_L_WIDTH;
+        event_type = PHOTO_ENCODER_L_WIDTH;
     }
     else
     {
-        notify_type = PHOTO_ENCODER_L_DISTANCE;
+        event_type = PHOTO_ENCODER_L_DISTANCE;
     }
 
-    /**
-     * @todo Implement some failsafe here that will warn
-     * user when we are missing some photo encoder pulses handled.
-     * Use xTaskNotifyAndQuery.
-     */
-    xTaskNotifyFromISR(algo_position_photo_encoder_process_task_handle, notify_type, eSetBits, &higher_task_woken);
+    retval = xQueueSendFromISR(photo_encoder_event_queue, &event_type, &higher_task_woken);
+    if (retval == errQUEUE_FULL)
+    {
+        ESP_DRAM_LOGE(TAG, "photo_encoder_event_queue full, tick lost");
+    }
+
     portYIELD_FROM_ISR(higher_task_woken);
 }
 
 static void photo_encoder_r_isr(void *arg)
 {
+    BaseType_t retval;
     BaseType_t higher_task_woken = pdFALSE;
     int level = gpio_get_level(PHOTO_ENCODER_GPIO_PIN_R);
-    photo_encoder_notify_type notify_type;
+    photo_encoder_event_type event_type;
 
     if (level)
     {
-        notify_type = PHOTO_ENCODER_R_WIDTH;
+        event_type = PHOTO_ENCODER_R_WIDTH;
     }
     else
     {
-        notify_type = PHOTO_ENCODER_R_DISTANCE;
+        event_type = PHOTO_ENCODER_R_DISTANCE;
     }
 
-    /**
-     * @todo Implement some failsafe here that will warn
-     * user when we are missing some photo encoder pulses handled.
-     * Use xTaskNotifyAndQuery.
-     */
-    xTaskNotifyFromISR(algo_position_photo_encoder_process_task_handle, notify_type, eSetBits, &higher_task_woken);
+    retval = xQueueSendFromISR(photo_encoder_event_queue, &event_type, &higher_task_woken);
+    if (retval == errQUEUE_FULL)
+    {
+        ESP_DRAM_LOGE(TAG, "photo_encoder_event_queue full, tick lost");
+    }
+
     portYIELD_FROM_ISR(higher_task_woken);
 }
 
@@ -101,6 +105,15 @@ static void photo_encoder_r_isr(void *arg)
 void photo_encoder_init()
 {
     int retval;
+
+    /**
+     * @brief Initialize notify queue, handled in position_photo_encoder_process.
+     */
+    photo_encoder_event_queue = xQueueCreate(10, sizeof(photo_encoder_event_type));
+    if (photo_encoder_event_queue == NULL)
+    {
+        abort();
+    }
 
     /**
      * @brief Initialize output data struct.

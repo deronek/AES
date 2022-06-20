@@ -4,6 +4,8 @@
 #include "photo_encoder.h"
 #include "mpu9255.h"
 #include "hp_iir_filter.h"
+#include "lp_iir_filter.h"
+
 #include <math.h>
 
 // structs
@@ -14,13 +16,15 @@ typedef struct accel_velocity_type_tag
 } accel_velocity_type;
 
 // constants
-#define POSITION_COMP_FILTER_ALPHA (0.5)
+#define POSITION_COMP_FILTER_ALPHA (1)
 #define G_UNIT_TO_M_S2 (9.80665)
-#define ACCEL_LP_FILTER_ALPHA (0.5)
 #define TIME_DELTA_ACCEL (1.0 / 200)
 
+// #define ACCEL_HP_FILTER_ALPHA (0.99)
+#define ACCEL_LP_FILTER_ALPHA (0.02)
+
 #define ALGO_POSITION_FREQUENCY (10)
-#define ALGO_POSITION_DELTA_TIME (1 / ALGO_POSITION_FREQUENCY)
+#define ALGO_POSITION_DELTA_TIME (1.0 / ALGO_POSITION_FREQUENCY)
 #define TASK_TICK_PERIOD (TASK_HZ_TO_TICKS(ALGO_POSITION_FREQUENCY))
 
 #define PHOTO_ENCODER_TIMEOUT_MS (50)
@@ -28,6 +32,9 @@ typedef struct accel_velocity_type_tag
 
 #define ACCEL_TIMEOUT_MS (10)
 #define ACCEL_TIMEOUT_TICKS (pdMS_TO_TICKS(ACCEL_TIMEOUT_MS))
+
+// #define POSITION_INTEGRATION_RECTANGLE
+#define POSITION_INTEGRATION_TRAPEZOIDAL
 
 // global variables
 QueueHandle_t algo_position_queue;
@@ -37,8 +44,11 @@ static QueueHandle_t photo_encoder_position_queue;
 static QueueHandle_t accel_velocity_queue;
 static mpu9255_sensor_data_type accel_data;
 
-static hp_iir_filter_type *accel_lp_filter_x;
-static hp_iir_filter_type *accel_lp_filter_y;
+static hp_iir_filter_type *accel_hp_filter_x;
+static hp_iir_filter_type *accel_hp_filter_y;
+
+static lp_iir_filter_type *accel_lp_filter_x;
+static lp_iir_filter_type *accel_lp_filter_y;
 
 static const char *TAG = "algo-position";
 
@@ -72,9 +82,12 @@ void position_init()
         abort();
     }
 
-    // initialize LP IIR filter for accel velocity data
-    accel_lp_filter_x = hp_iir_filter_init(ACCEL_LP_FILTER_ALPHA);
-    accel_lp_filter_y = hp_iir_filter_init(ACCEL_LP_FILTER_ALPHA);
+    // initialize high-pass and low-pass IIR filter for accel velocity data
+    // accel_hp_filter_x = hp_iir_filter_init(ACCEL_HP_FILTER_ALPHA);
+    // accel_hp_filter_y = hp_iir_filter_init(ACCEL_HP_FILTER_ALPHA);
+
+    accel_lp_filter_x = lp_iir_filter_init(ACCEL_LP_FILTER_ALPHA);
+    accel_lp_filter_y = lp_iir_filter_init(ACCEL_LP_FILTER_ALPHA);
 }
 
 TASK position_process()
@@ -137,6 +150,8 @@ TASK position_process()
         position.y = (POSITION_COMP_FILTER_ALPHA * accel_y) +
                      ((1 - POSITION_COMP_FILTER_ALPHA) * photo_encoder_position.y);
 
+        ESP_LOGI(TAG, "x: %.2f cm, y: %.2f cm", accel_velocity.x * 100, accel_velocity.y * 100);
+
         xQueueOverwriteFromISR(algo_position_queue, &position, NULL);
         // xQueueOverwrite(algo_position_queue, &position);
         // ESP_LOGI(TAG, "Position stop iter");
@@ -152,8 +167,6 @@ TASK position_process()
 TASK position_photo_encoder_process()
 {
     BaseType_t retval;
-    float delta_left = 0;
-    float delta_right = 0;
 
     photo_encoder_position_type pos = {0};
     /**
@@ -164,12 +177,17 @@ TASK position_photo_encoder_process()
 
     for (;;)
     {
+        float delta_left = 0;
+        float delta_right = 0;
+
         if (photo_encoder_process_stop_requested)
         {
             break;
         }
-        uint32_t notify_val = ulTaskNotifyTake(pdTRUE, PHOTO_ENCODER_TIMEOUT_TICKS);
-        if (notify_val == 0)
+        photo_encoder_event_type event;
+        retval = xQueueReceive(photo_encoder_event_queue, &event, PHOTO_ENCODER_TIMEOUT_TICKS);
+
+        if (retval != pdPASS)
         {
             /**
              * @brief We did not get a tick from photo encoders in
@@ -180,24 +198,34 @@ TASK position_photo_encoder_process()
             continue;
         }
 
-        /**
-         * @brief Check notify value from photo encoder ISR.
-         */
-        if (notify_val | PHOTO_ENCODER_L_WIDTH)
+        switch (event)
+        {
+        case PHOTO_ENCODER_L_WIDTH:
         {
             delta_left += WIDTH_STRIPE_M;
+            break;
         }
-        if (notify_val | PHOTO_ENCODER_L_DISTANCE)
+
+        case PHOTO_ENCODER_L_DISTANCE:
         {
             delta_left += DISTANCE_STRIPE_M;
+            break;
         }
-        if (notify_val | PHOTO_ENCODER_R_WIDTH)
+
+        case PHOTO_ENCODER_R_WIDTH:
         {
             delta_right += WIDTH_STRIPE_M;
+            break;
         }
-        if (notify_val | PHOTO_ENCODER_R_DISTANCE)
+
+        case PHOTO_ENCODER_R_DISTANCE:
         {
             delta_right += DISTANCE_STRIPE_M;
+            break;
+        }
+
+        default:
+            break;
         }
 
         float delta_center = (delta_left + delta_right) / 2;
@@ -268,13 +296,13 @@ TASK position_accel_process()
         float x_accel = (float)accel_data.x * G_UNIT_TO_M_S2 * 2 / INT16_MAX;
         float y_accel = (float)accel_data.y * G_UNIT_TO_M_S2 * 2 / INT16_MAX;
 
-#if defined(POSITION_RECTANGLE)
+#if defined(POSITION_INTEGRATION_RECTANGLE)
         v.x += (x_accel * TIME_DELTA_ACCEL);
         v.y += (y_accel * TIME_DELTA_ACCEL);
-#elif defined(POSITION_TRAPEZOIDAL)
+#elif defined(POSITION_INTEGRATION_TRAPEZOIDAL)
 
-        v.x += ((x_accel + x_accel_n_1) / 2 * TIME_DELTA_ACCEL);
-        v.y += ((y_accel + y_accel_n_1) / 2 * TIME_DELTA_ACCEL);
+        v.x += ((x_accel + x_accel_n_1) / 2.0 * TIME_DELTA_ACCEL);
+        v.y += ((y_accel + y_accel_n_1) / 2.0 * TIME_DELTA_ACCEL);
 
         // save n-1 values for next iteration
         x_accel_n_1 = x_accel;
@@ -287,9 +315,14 @@ TASK position_accel_process()
          * @brief Apply high-pass filter on velocity data.
          * We only need short-term change of it and we want
          * to kill any build-up offset.
+         * We use low-pass filter and subtract its output
+         * from the current data.
+         * @todo Should use more samples in this filter.
          */
-        v.x = hp_iir_filter_step(accel_lp_filter_x, v.x);
-        v.y = hp_iir_filter_step(accel_lp_filter_x, v.y);
+        v.x -= lp_iir_filter_step(accel_lp_filter_x, v.x);
+        v.y -= lp_iir_filter_step(accel_lp_filter_y, v.y);
+        // v.x = hp_iir_filter_step(accel_hp_filter_x, v.x);
+        // v.y = hp_iir_filter_step(accel_hp_filter_y, v.y);
 
         // ESP_LOGI(TAG, "x_vel = %.2f", x_vel);
         // ESP_LOGI(TAG, "y_vel = %.2f", y_vel);

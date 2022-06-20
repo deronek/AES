@@ -13,7 +13,7 @@ typedef struct hp_iir_filter_type_tag
 // global variables
 
 // local variables
-static const char *TAG = "algo-iir-filter";
+static const char *TAG = "hp-iir-filter";
 
 // inline function declarations
 
