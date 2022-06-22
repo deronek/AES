@@ -39,6 +39,7 @@ typedef struct motor_control_input_data_type_tag
 // function declarations
 
 void motor_init();
+void motor_start();
 void motor_tick();
 void motor_reset();
 

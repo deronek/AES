@@ -6,8 +6,14 @@
 #include <math.h>
 
 // constants
-#define SPEED 0.5F
-#define PWM_FREQUENCY 50000U
+/**
+ * @brief Minimum and maximum vehicle speed, in percent of maximum motors speed.
+ * Values from 0 to 100.
+ */
+#define SPEED_MIN (0.0F)
+#define SPEED_MAX (50.0F)
+
+#define PWM_FREQUENCY 1000U
 
 #define RAD_TO_DEG (180.0 / M_PI)
 #define DEG_TO_RAD (M_PI / 180.0)
@@ -93,17 +99,30 @@ void motor_init()
     gpio_reset_pin(DIR2_GPIO_NUM);
     gpio_set_direction(DIR2_GPIO_NUM, GPIO_MODE_OUTPUT);
 
-    mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, PWM1_GPIO_NUM);
-    mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0B, PWM2_GPIO_NUM);
+    ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, PWM1_GPIO_NUM));
+    ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_1, MCPWM0A, PWM2_GPIO_NUM));
 
-    mcpwm_config_t mcpwm_config = {
+    mcpwm_config_t mcpwm_config1 = {
         .frequency = PWM_FREQUENCY,
         .cmpr_a = 0,
         .cmpr_b = 0,
         .duty_mode = MCPWM_DUTY_MODE_0,
         .counter_mode = MCPWM_UP_COUNTER};
 
-    mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &mcpwm_config);
+    ESP_ERROR_CHECK(mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &mcpwm_config1));
+    ESP_ERROR_CHECK(mcpwm_set_signal_low(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A));
+    // ESP_ERROR_CHECK(mcpwm_set_signal_low(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_B));
+
+    mcpwm_config_t mcpwm_config2 = {
+        .frequency = PWM_FREQUENCY,
+        .cmpr_a = 0,
+        .cmpr_b = 0,
+        .duty_mode = MCPWM_DUTY_MODE_0,
+        .counter_mode = MCPWM_UP_COUNTER};
+
+    ESP_ERROR_CHECK(mcpwm_init(MCPWM_UNIT_1, MCPWM_TIMER_1, &mcpwm_config2));
+    ESP_ERROR_CHECK(mcpwm_set_signal_low(MCPWM_UNIT_1, MCPWM_TIMER_1, MCPWM_GEN_A));
+    // ESP_ERROR_CHECK(mcpwm_set_signal_low(MCPWM_UNIT_1, MCPWM_TIMER_1, MCPWM_GEN_B));
 }
 
 TASK motor_main()
@@ -159,6 +178,8 @@ void motor_tick(motor_control_input_data_type input_data)
 
     motor_control_output_data.pwm1 = motor_calculate_pwm1(omega);
     motor_control_output_data.pwm2 = motor_calculate_pwm2(omega);
+
+    motor_perform_control();
 }
 
 /**
@@ -167,40 +188,51 @@ void motor_tick(motor_control_input_data_type input_data)
 static float motor_calculate_pwm1(float omega)
 {
     float pwm;
-    if (omega <= (-M_PI / 2))
+    if (omega <= (-M_PI / 2.0))
     {
-        pwm = 0;
+        pwm = SPEED_MIN;
     }
-    else if ((omega > (-M_PI / 2) && (omega < 0)))
+    else if ((omega > (-M_PI / 2.0) && (omega < 0)))
     {
-        pwm = (2 / M_PI) * omega;
+        pwm = ((SPEED_MAX - SPEED_MIN) / (M_PI / 2.0)) * omega + SPEED_MAX;
     }
     else // omega >= 0
     {
-        pwm = 1;
+        pwm = SPEED_MAX;
     }
     return pwm;
 }
 
 /**
  * @brief Calculate PWM duty cycle for the right motor.
+ * @todo Fix this calculation, PWM2 sometimes has minus sign.
  */
 static float motor_calculate_pwm2(float omega)
 {
     float pwm;
     if (omega <= 0)
     {
-        pwm = 1;
+        pwm = SPEED_MAX;
     }
-    else if ((omega > 0) && (omega < (M_PI / 2)))
+    else if ((omega > 0) && (omega < (M_PI / 2.0)))
     {
-        pwm = (-2 / M_PI) * omega;
+        pwm = (-(SPEED_MAX - SPEED_MIN) / (M_PI / 2.0)) * omega + SPEED_MAX;
     }
     else // omega >= (M_PI / 2)
     {
-        pwm = 0;
+        pwm = SPEED_MIN;
     }
     return pwm;
+}
+
+void motor_start()
+{
+    // ESP_ERROR_CHECK(mcpwm_start(MCPWM_UNIT_0, MCPWM_TIMER_0));
+    // ESP_ERROR_CHECK(mcpwm_start(MCPWM_UNIT_1, MCPWM_TIMER_1));
+    ESP_ERROR_CHECK(mcpwm_set_duty_type(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A, MCPWM_DUTY_MODE_0));
+    ESP_ERROR_CHECK(mcpwm_set_duty_type(MCPWM_UNIT_1, MCPWM_TIMER_1, MCPWM_GEN_A, MCPWM_DUTY_MODE_0));
+    // ESP_ERROR_CHECK(mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A, motor_control_output_data.pwm1));
+    // ESP_ERROR_CHECK(mcpwm_set_duty_type(MCPWM_UNIT_1, MCPWM_TIMER_1, MCPWM_GEN_A, MCPWM_DUTY_MODE_0));
 }
 
 void motor_perform_control()
@@ -208,15 +240,24 @@ void motor_perform_control()
     gpio_set_level(DIR1_GPIO_NUM, motor_control_output_data.dir1);
     gpio_set_level(DIR2_GPIO_NUM, motor_control_output_data.dir2);
 
-    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A, motor_control_output_data.pwm1);
-    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_B, motor_control_output_data.pwm2);
+    ESP_LOGI(TAG, "PWM1 = %.1f, PWM2 = %.1f", motor_control_output_data.pwm1, motor_control_output_data.pwm2);
+
+    ESP_ERROR_CHECK(mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A, motor_control_output_data.pwm1));
+    ESP_ERROR_CHECK(mcpwm_set_duty(MCPWM_UNIT_1, MCPWM_TIMER_1, MCPWM_GEN_A, motor_control_output_data.pwm2));
+
+    // ESP_ERROR_CHECK(mcpwm_set_duty_type(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A, MCPWM_DUTY_MODE_0));
+    // ESP_ERROR_CHECK(mcpwm_set_duty_type(MCPWM_UNIT_1, MCPWM_TIMER_1, MCPWM_GEN_A, MCPWM_DUTY_MODE_0));
 }
 
 void motor_reset()
 {
+    ESP_ERROR_CHECK(mcpwm_set_signal_low(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A));
+    ESP_ERROR_CHECK(mcpwm_set_signal_low(MCPWM_UNIT_1, MCPWM_TIMER_1, MCPWM_GEN_A));
+    // ESP_ERROR_CHECK(mcpwm_stop(MCPWM_UNIT_0, MCPWM_TIMER_0));
+    // ESP_ERROR_CHECK(mcpwm_stop(MCPWM_UNIT_1, MCPWM_TIMER_1));
+
     motor_control_output_data.pwm1 = 0.0;
     motor_control_output_data.pwm2 = 0.0;
-    motor_perform_control();
 
     error_hat = 0.0;
     old_error = FINISH_HEADING;
