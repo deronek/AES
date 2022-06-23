@@ -52,6 +52,8 @@ void heading_imu_calculate()
     float heading = atan2f(siny_cosp, cosy_cosp);
     algo_current_heading = heading;
 
+    ESP_LOGI(TAG, "Current heading: %.2f", RAD_TO_DEG * heading);
+
     // ESP_LOGI(TAG, "Heading: %.2f", heading);
 }
 

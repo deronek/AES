@@ -18,7 +18,12 @@ typedef struct accel_velocity_type_tag
 } accel_velocity_type;
 
 // constants
-#define POSITION_COMP_FILTER_ALPHA (1)
+/**
+ * @brief Complementary filter coefficient for final position estimation.
+ * Values closer to 0 favor accelerometer measurements.
+ * Values closer to 1 favor photo encoders measurements.
+ */
+#define POSITION_COMP_FILTER_ALPHA (0.05)
 #define G_UNIT_TO_M_S2 (9.80665)
 #define TIME_DELTA_ACCEL (1.0 / 200)
 
@@ -151,7 +156,7 @@ TASK position_process()
         position.y = (POSITION_COMP_FILTER_ALPHA * accel_y) +
                      ((1 - POSITION_COMP_FILTER_ALPHA) * photo_encoder_position.y);
 
-        ESP_LOGI(TAG, "x: %.2f cm, y: %.2f cm", position.x * 100, position.y * 100);
+        // ESP_LOGI(TAG, "x: %.2f cm, y: %.2f cm", position.x * 100, position.y * 100);
 
         xQueueOverwriteFromISR(algo_position_queue, &position, NULL);
         // xQueueOverwrite(algo_position_queue, &position);

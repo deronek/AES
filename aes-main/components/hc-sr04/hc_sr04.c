@@ -1,4 +1,7 @@
 #include "hc_sr04.h"
+
+#include "ble.h"
+
 #include "driver/rmt.h"
 
 // constants
@@ -349,8 +352,20 @@ TASK hc_sr04_measure()
 #ifdef HC_SR04_MAP_SENSORS
                 measurement_index = hc_sr04_sensor_mapping[measurement_index];
 #endif
-                // ESP_LOGI(TAG, "index %d", measurement_index);
-                volatile uint32_t distance = hc_sr04_calculate_distance(rx_durations[echo]) - hc_sr04_distance_offset[measurement_index];
+                /**
+                 * @brief Calculate distance measurement from pulse duration.
+                 * If measurement was not successful, put 2 meters (no obstacle).
+                 */
+                volatile uint32_t distance;
+                if (rx_durations[echo])
+                {
+                    distance = hc_sr04_calculate_distance(rx_durations[echo]) - hc_sr04_distance_offset[measurement_index];
+                }
+                else
+                {
+                    distance = 2000000;
+                }
+
                 // ESP_LOGI(TAG, "Distance %d", distance);
 
                 // ESP_LOGI(TAG, "Distance %d", distance);
@@ -363,13 +378,15 @@ TASK hc_sr04_measure()
         }
         // ESP_LOGI(TAG, "Sending data to queue");
         // ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
-        ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
-                 hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
+        // ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
+        //          hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
 
         // ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
 
         // ESP_LOGI(TAG, "Queue address %p", hc_sr04_queue_data);
+        ble_send_from_task(TASK_ID_HC_SR04, &hc_sr04_data);
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);
+
         // app_manager_algo_task_notify(TASK_FLAG_HC_SR04);
         // app_manager_ble_task_notify(TASK_FLAG_HC_SR04);
     }

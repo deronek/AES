@@ -82,10 +82,17 @@ class AESController:
         #self.window.blit(draw_radar(distance), (37, 137))
 
 
+
         if self.ble.hc_sr04.available:
             app_manager_state = await self.ble.app_manager.get_data()
             timestamp = self.ble.timestamp
         #self.window.blit(draw_radar(distance.distance), (37, 137))
+
+            # distance = [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
+            # if self.ble.hc_sr04.available:
+        app_manager_state = await self.ble.app_manager.get_data()
+        timestamp = self.ble.timestamp
+
 
         if self.ble.algo.available:
             algo = await self.ble.algo.get_data()

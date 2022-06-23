@@ -28,5 +28,9 @@ void algo_data_receive_get_latest()
     {
         ESP_LOGE(TAG, "algo_position_queue empty");
     }
-    // xQueuePeek(hc_sr04_queue_data, &algo_hc_sr04_data, 0);
+    retval = xQueuePeek(hc_sr04_queue_data, &algo_hc_sr04_data, 0);
+    if (retval != pdPASS)
+    {
+        ESP_LOGE(TAG, "hc_sr04_queue_data empty");
+    }
 }

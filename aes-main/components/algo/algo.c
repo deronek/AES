@@ -5,6 +5,8 @@
 #include "heading_imu.h"
 #include "position.h"
 #include "desired_heading.h"
+#include "final_heading.h"
+#include "obstacle_avoidance.h"
 #include "photo_encoder.h"
 #include "motor.h"
 #include "hall.h"
@@ -69,8 +71,10 @@ void algo_init()
 
     position_init();
     photo_encoder_init();
+    obstacle_avoidance_init();
     heading_imu_init();
     desired_heading_init();
+    final_heading_calculate();
     motor_init();
 }
 
@@ -134,6 +138,7 @@ TASK algo_main()
     vTaskDelay(pdMS_TO_TICKS(50));
     algo_running = true;
     app_manager_notify_main(TASK_ID_ALGO, EVENT_STARTED_DRIVING);
+    motor_start();
 
     // get start time of this iteration
     TickType_t last_wake_time = xTaskGetTickCount();
@@ -155,6 +160,11 @@ TASK algo_main()
         algo_data_receive_get_latest();
 
         algo_run();
+
+        if (algo_stop_requested)
+        {
+            break;
+        }
         algo_ble_send();
         /**
          * @brief We want to run algo calculations at least with ALGO_FREQUENCY.
@@ -220,9 +230,12 @@ void algo_ble_send()
 {
     algo_ble_data_type ble_data;
 
-    ble_data.heading = algo_current_heading * RAD_TO_DEG;
+    ble_data.current_heading = algo_current_heading * RAD_TO_DEG;
     ble_data.pos_x = algo_position.x;
     ble_data.pos_y = algo_position.x;
+    // ble_data.desired_heading = algo_desired_heading * RAD_TO_DEG;
+    // ble_data.obstacle_avoidance_heading_sector = algo_obstacle_avoidance_heading_sector;
+    ble_data.final_heading = algo_final_heading;
 
     ble_send_from_task(TASK_ID_ALGO, &ble_data);
 }
@@ -231,11 +244,20 @@ void algo_run()
 {
     heading_imu_calculate();
     desired_heading_calculate();
-    // obstacle_avoidance_calculate();
+    obstacle_avoidance_calculate();
+
+    if (algo_obstacle_avoidance_heading_sector == 255)
+    {
+        algo_stop_requested = true;
+        return;
+    }
+
+    final_heading_calculate();
 
     motor_control_input_data_type motor_control;
     motor_control.current_heading = algo_current_heading;
-    motor_control.desired_heading = algo_desired_heading;
+    motor_control.desired_heading = algo_final_heading;
+    // motor_control.desired_heading = algo_desired_heading;
 
     motor_tick(motor_control);
 

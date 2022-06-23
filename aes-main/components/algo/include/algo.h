@@ -37,9 +37,12 @@
 
 typedef struct algo_ble_data_type_tag
 {
-    float heading;
+    float current_heading;
     float pos_x;
     float pos_y;
+    float desired_heading;
+    uint8_t obstacle_avoidance_heading_sector;
+    float final_heading;
 } algo_ble_data_type;
 
 // global variables

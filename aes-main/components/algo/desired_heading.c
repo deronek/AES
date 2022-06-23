@@ -30,8 +30,8 @@ static float ys = 0.0;
 /**
  * @brief (xf, yf) - coordinates of the finish point.
  */
-static float xf = 2.0;
-static float yf = 6.6;
+static float xf = 3.96;
+static float yf = 2.0;
 
 /**
  * @brief (x_hat, y_hat) - length and with of the play area.

@@ -3,18 +3,28 @@
 #include "data_receive.h"
 
 #include "hc_sr04.h"
+#include "heading_imu.h"
+#include "desired_heading.h"
 
 #include "esp_log.h"
 #include "esp_err.h"
 
 #include <stdlib.h>
 
-// constants
-#define DISTANCE_SCALING_FACTOR_UNITY 10000
+#include <math.h>
 
-// #define DANGER_LEVELS_NUMBER 7
-#define DANGER_LEVEL_MAX 5
-#define DANGER_LEVEL_DISTANCE_THRESHOLD 60000
+// constants
+
+#define RAD_TO_DEG (180.0 / M_PI)
+#define DEG_TO_RAD (M_PI / 180.0)
+
+#define DISTANCE_SCALING_FACTOR_UNITY 10000
+#define DANGER_LEVEL_DISTANCE_THRESHOLD 800000
+
+#define DANGER_LEVEL_SAFE_THRESHOLD (3.0)
+#define DANGER_LEVEL_DECREMENT_PER_TICK (0.2)
+
+#define SECTOR_NOT_FOUND (UINT8_MAX)
 
 // fuzzy input boundaries
 #define FUZZY_INPUT_BOUNDARY_NEAR_LOW 10000
@@ -35,14 +45,46 @@
  * @brief HC-SR04 sensor regions - start angles
  * Sector are numbered from left to right, from 0 to 7.
  */
-static const float hc_sr04_sensor_regions[NUMBER_OF_HC_SR04_SENSORS] = {
-    90, 67.5, 45, 22.5, 0, -22.5, -45, -67.5};
+// static const float hc_sr04_sensor_regions[NUMBER_OF_HC_SR04_SENSORS] = {
+//     90, 67.5, 45, 22.5, 0, -22.5, -45, -67.5};
+#define SECTOR_ANGLE (22.5 * DEG_TO_RAD)
+#define SECTOR_ANGLE_HALF (SECTOR_ANGLE / 2.0)
 
-// local variables
-float *danger_intensities;
-float *danger_levels;
+static const float hc_sr04_sensor_regions[NUMBER_OF_HC_SR04_SENSORS] = {
+    90.0 * DEG_TO_RAD,
+    67.5 * DEG_TO_RAD,
+    45 * DEG_TO_RAD,
+    22.5 * DEG_TO_RAD,
+    0 * DEG_TO_RAD,
+    -22.5 * DEG_TO_RAD,
+    -45 * DEG_TO_RAD,
+    -67.5 * DEG_TO_RAD};
+
+// static const float hc_sr04_sensor_regions_centers[NUMBER_OF_HC_SR04_SENSORS] = {
+//     90.0 * DEG_TO_RAD + SECTOR_ANGLE_HALF,
+//     67.5 * DEG_TO_RAD + SECTOR_ANGLE_HALF,
+//     45 * DEG_TO_RAD + SECTOR_ANGLE_HALF,
+//     22.5 * DEG_TO_RAD + SECTOR_ANGLE_HALF,
+//     0 * DEG_TO_RAD + SECTOR_ANGLE_HALF,
+//     -22.5 * DEG_TO_RAD + SECTOR_ANGLE_HALF,
+//     -45 * DEG_TO_RAD + SECTOR_ANGLE_HALF,
+//     -67.5 * DEG_TO_RAD + SECTOR_ANGLE_HALF};
+
+#define REGION_ANGLE (M_PI / NUMBER_OF_HC_SR04_SENSORS)
 
 // global variables
+float algo_obstacle_avoidance_steering_angle;
+uint8_t algo_obstacle_avoidance_heading_sector;
+uint8_t algo_obstacle_avoidance_danger_level_in_heading;
+float algo_follow_wall_angle;
+
+// local variables
+static const char *TAG = "algo-obstacle-avoidance";
+float obstacle_avoidance_angles[NUMBER_OF_HC_SR04_SENSORS];
+float danger_intensities[NUMBER_OF_HC_SR04_SENSORS];
+int most_dangerous_sector = -1;
+float biggest_danger_level = -1;
+float danger_levels[NUMBER_OF_HC_SR04_SENSORS];
 
 // local function declarations
 static float fuzzy_input_near(uint32_t distance);
@@ -50,38 +92,79 @@ static float fuzzy_input_middle(uint32_t distance);
 static float fuzzy_input_far(uint32_t distance);
 static void calculate_danger_intensities();
 static void calculate_danger_levels();
+static int calculate_sector_from_heading(float heading);
+static void check_left_sector(int sector_to_check, int *safe_sector);
+static void check_right_sector(int sector_to_check, int *safe_sector);
+void calculate_obstacle_avoidance_angle();
+
+// inline function definitions
+inline static bool is_correct_sector(int sector)
+{
+    if (sector >= 0 && sector < NUMBER_OF_HC_SR04_SENSORS)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+inline static bool is_sector_safe(int sector)
+{
+    if (is_correct_sector(sector) && (danger_levels[sector] < DANGER_LEVEL_SAFE_THRESHOLD))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 
 // function definitions
 
 void obstacle_avoidance_init()
 {
-    danger_intensities = malloc(NUMBER_OF_HC_SR04_SENSORS * sizeof(danger_intensities));
-    if (danger_intensities == NULL)
-    {
-        abort();
-    }
-
-    danger_levels = malloc(NUMBER_OF_HC_SR04_SENSORS * sizeof(danger_intensities));
-    if (danger_levels == NULL)
-    {
-        abort();
-    }
 }
 
 void obstacle_avoidance_calculate()
 {
-    /**
-     * @brief Danger intensity defines how risky is to head
-     * to the direction pointed by the sensor.
-     */
-    calculate_danger_intensities();
+    // /**
+    //  * @brief Danger intensity defines how risky is to head
+    //  * to the direction pointed by the sensor.
+    //  */
+    // calculate_danger_intensities();
 
+    /**
+     * @brief Boundary following algorithm:
+     * - get obstacle avoidance angle from each obstacle (sector)
+     * - choose clockwise or counter-clockwise direction (maybe which is more
+     * in the way of the goal)
+     * - calculate "follow the wall angle"
+     * - this angle will be blended in final heading module
+     */
     /**
      * @brief Danger level defines how much corrective action
      * the robot has to take to avoid collision.
      */
     calculate_danger_levels();
+    if (biggest_danger_level < DANGER_LEVEL_SAFE_THRESHOLD)
+    {
+        /**
+         * @todo Do not avoid the obstacle, area is safe.
+         */
+        algo_follow_wall_angle = INFINITY;
+        ESP_LOGI(TAG, "Area is safe, driving to desired heading");
+        return;
+    }
 
+    /**
+     * @brief Calculate obstacle avoidance angle to the nearest obstacle
+     * (most dangerous sector).
+     */
+    calculate_obstacle_avoidance_angle();
+    ESP_LOGI(TAG, "Following wall at angle %.2f, obstacle at angle %.2f", algo_follow_wall_angle * RAD_TO_DEG, hc_sr04_sensor_regions[most_dangerous_sector] * RAD_TO_DEG);
     /**
      * @brief IEEE article approach
      * - check if it is safe to drive to wanted heading
@@ -99,7 +182,47 @@ void obstacle_avoidance_calculate()
      */
 }
 
-void calculate_sector_from_heading(float heading)
+void calculate_obstacle_avoidance_angle()
+{
+    float angle_to_obstacle = algo_current_heading + hc_sr04_sensor_regions[most_dangerous_sector];
+    float cw = angle_to_obstacle + M_PI;
+    float ccw = angle_to_obstacle - M_PI;
+
+    /**
+     * @brief If clockwise direction is closer to the desired heading, choose it.
+     * Otherwise, choose the counter-clockwise direction.
+     */
+    if (fabsf((algo_desired_heading - cw)) < fabsf((algo_desired_heading - ccw)))
+    {
+        algo_follow_wall_angle = cw;
+    }
+    else
+    {
+        algo_follow_wall_angle = ccw;
+    }
+}
+
+void check_left_sector(int sector_to_check, int *safe_sector)
+{
+    int left_sector = sector_to_check;
+    if (is_sector_safe(left_sector))
+    {
+        *safe_sector = left_sector;
+        return;
+    }
+}
+
+void check_right_sector(int sector_to_check, int *safe_sector)
+{
+    int right_sector = sector_to_check;
+    if (is_sector_safe(right_sector))
+    {
+        *safe_sector = right_sector;
+        return;
+    }
+}
+
+int calculate_sector_from_heading(float heading)
 {
     if (heading >= hc_sr04_sensor_regions[1])
     {
@@ -117,6 +240,8 @@ void calculate_sector_from_heading(float heading)
             return i;
         }
     }
+    ESP_LOGE(TAG, "calculate_sector_from_heading error");
+    return -1;
 }
 
 void calculate_danger_intensities()
@@ -140,15 +265,55 @@ void calculate_danger_intensities()
 
 void calculate_danger_levels(uint32_t distance)
 {
+    most_dangerous_sector = -1;
+    biggest_danger_level = -1;
     for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
     {
+        float new_danger_level;
         uint32_t distance = algo_hc_sr04_data.distance[i];
-        if (distance > DANGER_LEVEL_DISTANCE_THRESHOLD)
+
+        // measurement error, put maximum danger level
+        if (distance == 0)
         {
-            return 0;
+            new_danger_level = DANGER_LEVEL_MAX;
         }
 
-        danger_levels[i] = min(DANGER_LEVEL_MAX, DANGER_LEVEL_DISTANCE_THRESHOLD / distance);
+        // very far away, minimum danger level
+        else if (distance > DANGER_LEVEL_DISTANCE_THRESHOLD)
+        {
+            new_danger_level = DANGER_LEVEL_MIN;
+        }
+
+        else
+        {
+            new_danger_level = min(DANGER_LEVEL_MAX, (float)DANGER_LEVEL_DISTANCE_THRESHOLD / distance);
+        }
+
+        /**
+         * @brief If new danger level is higher than before, set it.
+         *
+         * If danger level difference is smaller than DANGER_LEVEL_DECREMENT_PER_TICK,
+         * also set new danger level.
+         *
+         * If danger level difference is larger than DANGER_LEVEL_DECREMENT_PER_TICK,
+         * decrement danger level by DANGER_LEVEL_DECREMENT_PER_TICK.
+         */
+        if (new_danger_level > danger_levels[i] - DANGER_LEVEL_DECREMENT_PER_TICK)
+        {
+            danger_levels[i] = new_danger_level;
+        }
+        {
+            danger_levels[i] -= DANGER_LEVEL_DECREMENT_PER_TICK;
+        }
+
+        /**
+         * @brief Check if this is new most dangerous sector.
+         */
+        if (new_danger_level > biggest_danger_level)
+        {
+            biggest_danger_level = new_danger_level;
+            most_dangerous_sector = i;
+        }
     }
 }
 
