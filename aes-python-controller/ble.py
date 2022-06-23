@@ -10,11 +10,15 @@ from enum import Enum
 import bleak
 from bleak import BleakClient, BleakError
 
+from app_manager import AppManagerState
+
 
 class SensorID(Enum):
     TASK_ID_HC_SR04 = 0
     TASK_ID_MPU9255 = 1
     TASK_ID_ALGO = 2
+    TASK_ID_BLE = 3
+    TASK_ID_APP_MANAGER = 4
 
 
 NUMBER_OF_HC_SR04_SENSORS = 8
@@ -36,7 +40,6 @@ class LockedData(ABC):
     @abstractmethod
     async def get_data(self):
         pass
-
 
 class HcSr04(LockedData):
     class Distance:
@@ -94,6 +97,21 @@ class Algo(LockedData):
         return data
 
 
+class AppManager(LockedData):
+    def __init__(self):
+        super().__init__()
+        self.state = AppManagerState.APP_MANAGER_INIT
+
+    async def update_data(self, data: list):
+        # async with self.lock:
+        self.state = AppManagerState(data[0])
+        self.available = True
+
+    async def get_data(self):
+        # async with self.lock:
+        state = self.state
+        return state
+
 # class AlgoData(LockedData):
 #     def __init__(self, data: list):
 #         self.data = data
@@ -128,15 +146,19 @@ class BleControllerRequestId(Enum):
 class BLE:
     hc_sr04: HcSr04
     algo: Algo
+    app_manager: AppManager
     logger: logging.Logger
     # TODO
     client: BleakClient
     tx_queue: asyncio.Queue
+    timestamp: int
 
     def __init__(self):
         self.hc_sr04 = HcSr04()
         self.algo = Algo()
+        self.app_manager = AppManager()
         self.heading = 0
+        self.timestamp = 0
 
         logger = logging.getLogger(self.__class__.__name__)
         logging_handler = logging.FileHandler('ble.log')
@@ -180,6 +202,7 @@ class BLE:
             # print('packet')
             packet = BLE.BlePacket(data)
             await self.save_packet(packet)
+            self.timestamp = packet.timestamp
         except KeyError:
             print(f'Unrecognized packet ID, got {data[0]}')
 
@@ -189,6 +212,8 @@ class BLE:
                 await self.hc_sr04.update_data(packet.data)
             case SensorID.TASK_ID_ALGO:
                 await self.algo.update_data(packet.data)
+            case SensorID.TASK_ID_APP_MANAGER:
+                await self.app_manager.update_data(packet.data)
             case _:
                 raise KeyError(f'SensorID {packet.id} not implemented')
 
@@ -203,6 +228,9 @@ class BLE:
         """
         while True:
             try:
+                # create new instance of the client, otherwise sometimes
+                # it will not connect again
+                self.client = BleakClient(ADDRESS)
                 # powrót gdy stracimy połaczneie
                 await self.client.connect()
                 await self.client.start_notify(ESP_GATT_UUID_DATA_NOTIFICATION, self.callback)
@@ -214,17 +242,21 @@ class BLE:
             except Exception as e:
                 print(f"Exception in BLE.main(): {str(e)}")
                 # try again
-                await asyncio.sleep(1)
+                await self.client.disconnect()
+                await asyncio.sleep(3)
 
     async def ble_tx(self):
         while True:
-            if self.tx_queue.qsize() > 10:
-                print("The queue is full")
+            try:
+                if self.tx_queue.qsize() > 10:
+                    print("The queue is full")
 
-            data = await self.tx_queue.get()
-            packet = [0x10, data.value]
-            print(f'Sending BLE TX {packet}')
-            await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, bytes(packet), response=True)
+                data = await self.tx_queue.get()
+                packet = [0x10, data.value]
+                print(f'Sending BLE TX {packet}')
+                await self.client.write_gatt_char(ESP_GATT_UUID_CTRL_INDICATION, bytes(packet), response=True)
+            except Exception as e:
+                print(f"Exception in BLE.ble_tx(): {str(e)}")
 
     def send_start_drive(self):
         if self.client.is_connected:
