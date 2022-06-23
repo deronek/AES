@@ -4,7 +4,7 @@ import pygame
 
 pygame.font.init()
 pygame.mixer.init()
-pygame.init()
+
 from threading import Thread
 import time
 import asyncio
@@ -68,12 +68,11 @@ class AESController:
         if self.ble.hc_sr04.available:
             distance = await self.ble.hc_sr04.get_data()
             #distance = [900000, 200000, 300000, 400000, 500000, 600000, 700000, 800000]
-            self.window.blit(draw_radar(distance), (37, 137))
+            self.window.blit(draw_radar(distance.distance), (37, 137))
             #self.window.blit(draw_radar(distance), (37, 137))
 
-        # distance = [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
-        # if self.ble.hc_sr04.available:
-        distance = await self.ble.hc_sr04.get_data()
+            # distance = [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
+            # if self.ble.hc_sr04.available:
         app_manager_state = await self.ble.app_manager.get_data()
         timestamp = self.ble.timestamp
         self.window.blit(draw_radar(distance.distance), (37, 137))
