@@ -24,7 +24,7 @@ from ble import BLE
 
 import numpy as np
 
-#angle1 = 0
+# angle1 = 0
 
 # fix scaling on Windows
 if os.name == 'nt':
@@ -67,51 +67,33 @@ class AESController:
         # init_buttons()
 
     async def draw_window(self):
-        #global angle1
-        #angle1 += 1
+        # global angle1
+        # angle1 += 1
 
         self.handle_events()
         # WIN.fill(BLACK)
         timestamp = 0
         app_manager_state = AppManagerState.APP_MANAGER_INIT
 
-
-        if self.ble.hc_sr04.available:
-            distance = await self.ble.hc_sr04.get_data()
-            #distance = [90000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
-            self.window.blit(draw_radar(distance.distance), (37, 137))
-            #self.window.blit(draw_radar(distance), (37, 137))
-        else:
-            distance = [0, 0, 0, 0, 0, 0, 0, 0]
-            self.window.blit(draw_radar(distance), (37, 137))
-
-
-        #if self.ble.hc_sr04.available:
-        #app_manager_state = await self.ble.app_manager.get_data()
-        #timestamp = self.ble.timestamp
-        #self.window.blit(draw_radar(distance.distance), (37, 137))
-
-            # distance = [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
-            # if self.ble.hc_sr04.available:
-        app_manager_state = await self.ble.app_manager.get_data()
-        timestamp = self.ble.timestamp
-
-
         if self.ble.algo.available:
             algo = await self.ble.algo.get_data()
             self.heading = algo.heading
+        if self.ble.hc_sr04.available:
+            hc_sr04 = await self.ble.hc_sr04.get_data()
+            distance = hc_sr04.distance
+            # distance = [90000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
+        else:
+            distance = []
+
+        app_manager_state = await self.ble.app_manager.get_data()
+        timestamp = self.ble.timestamp
+
         self.window.blit(draw_heading(angle=self.heading), (200, 800))
-            #self.window.blit(draw_heading(angle=angle1), (200, 800))
-
-        # await asyncio.sleep(1)
-
-        # distance = []
+        self.window.blit(draw_radar(distance), (37, 137))
         self.window.blit(draw_connection_status(self.ble.client.is_connected), (35, 20))
         self.window.blit(draw_timestamp(timestamp), (975, 50))
         self.window.blit(draw_app_manager(app_manager_state), (1300, 200))
-
         self.buttons.draw()
-        #WIN.blit(draw_buttons(), (0, 0))
 
         # pygame_widgets.update(events)
         pygame.display.update()
