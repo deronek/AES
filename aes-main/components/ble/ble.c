@@ -46,6 +46,7 @@ enum
 
     BLE_IDX_HEARTBEAT_CHAR,
     BLE_IDX_HEARTBEAT_VAL,
+    BLE_IDX_HEARTBEAT_CFG,
 
     BLE_IDX_NB,
 };
@@ -70,7 +71,8 @@ static const uint16_t character_client_config_uuid = ESP_GATT_UUID_CHAR_CLIENT_C
 
 static const uint8_t char_prop_control_indication = ESP_GATT_CHAR_PROP_BIT_INDICATE | ESP_GATT_CHAR_PROP_BIT_WRITE;
 static const uint8_t char_prop_data_notification = ESP_GATT_CHAR_PROP_BIT_NOTIFY;
-static const uint8_t char_prop_heartbeat = ESP_GATT_CHAR_PROP_BIT_INDICATE | ESP_GATT_CHAR_PROP_BIT_WRITE;
+// static const uint8_t char_prop_heartbeat = ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_WRITE_NR;
+static const uint8_t char_prop_heartbeat = ESP_GATT_CHAR_PROP_BIT_INDICATE | ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_NOTIFY | ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE_NR;
 
 /// SPP Service - data receive characteristic, read&write without response
 static const uint16_t ble_ctrl_uuid = ESP_GATT_UUID_CTRL_INDICATION;
@@ -84,6 +86,7 @@ static const uint8_t ble_data_ccc[2] = {0x00, 0x00};
 /// SPP Server - Heart beat characteristic, notify&write&read
 static const uint16_t ble_heartbeat_uuid = ESP_GATT_UUID_HEARTBEAT;
 static const uint8_t ble_heartbeat_val[sizeof(heartbeat_s)] = {0x00};
+static const uint8_t ble_heartbeat_ccc[2] = {0x00, 0x00};
 
 static bool is_connected = false;
 static esp_bd_addr_t spp_remote_bda = {
@@ -185,11 +188,16 @@ static const esp_gatts_attr_db_t spp_gatt_db[BLE_IDX_NB] =
 
         // SPP -  Heart beat characteristic Declaration
         [BLE_IDX_HEARTBEAT_CHAR] =
-            {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ, CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_heartbeat}},
+            {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_heartbeat}},
 
         // SPP -  Heart beat characteristic Value
         [BLE_IDX_HEARTBEAT_VAL] =
             {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&ble_heartbeat_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, sizeof(ble_heartbeat_val), sizeof(ble_heartbeat_val), (uint8_t *)ble_heartbeat_val}},
+
+        // SPP -  Heart beat characteristic - Client Characteristic Configuration Descriptor
+        [BLE_IDX_HEARTBEAT_CFG] =
+            {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, sizeof(uint16_t), sizeof(ble_heartbeat_ccc), (uint8_t *)ble_heartbeat_ccc}},
+
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -373,15 +381,18 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             }
             else if (res == BLE_IDX_CTRL_INDIC_VAL)
             {
+                ESP_LOGI(TAG, "Handling indication packet from controller");
                 ble_handle_indication_packet(p_data);
             }
             else
             {
+                ESP_LOGI(TAG, "Unknown write event, res %d", res);
                 // TODO:
             }
         }
-        else if ((p_data->write.is_prep == true) && (res == BLE_IDX_CTRL_INDIC_VAL))
+        else
         {
+            ESP_LOGI(TAG, "Unknown write prepare event, res %d", res);
             // ESP_LOGE(TAG, "BLE_IDX_CTRL_INDIC_VAL");
             // // ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_PREP_WRITE_EVT : handle = %d\n", res);
             // store_wr_buffer(p_data);
@@ -597,10 +608,14 @@ TASK ble_heartbeat()
     for (;;)
     {
         vTaskDelay(BLE_HEARTBEAT_PERIOD_TICKS);
+        // ESP_LOGI(TAG, "Char properties %hhx", char_prop_heartbeat);
+        // ESP_LOGI(TAG, "Char settings %hx", spp_gatt_db[BLE_IDX_HEARTBEAT_VAL].att_desc.perm);
+        // ESP_LOGI(TAG, "Address: %p", &char_prop_heartbeat);
+        // ESP_LOGI(TAG, "Address in table: %p", spp_gatt_db[BLE_IDX_HEARTBEAT_CHAR].att_desc.value);
         if (is_connected)
         {
             heartbeat_count_num++;
-            if (heartbeat_count_num > 3)
+            if (heartbeat_count_num > 5)
             {
                 ESP_LOGW(TAG, "Heartbeat timeout");
                 esp_ble_gap_disconnect(spp_remote_bda);

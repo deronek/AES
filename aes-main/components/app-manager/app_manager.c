@@ -94,7 +94,7 @@ void app_manager_init_peripherals()
     // i2c_master_init();
 
     mpu9255_init();
-    // hc_sr04_init();
+    hc_sr04_init();
     ble_init();
 }
 
@@ -148,7 +148,7 @@ void app_manager_create_ble_heartbeat_task()
     task_utils_create_task(
         ble_heartbeat,
         "ble_heartbeat",
-        2048,
+        4096,
         NULL,
         3,
         &app_manager_ble_heartbeat_task_handle,
@@ -174,14 +174,14 @@ void app_manager_create_sensor_tasks()
     /**
      * @brief HC-SR04 sensors task
      */
-    // task_utils_create_task(
-    //     hc_sr04_measure,
-    //     "hc_sr04_measure",
-    //     8192,
-    //     NULL,
-    //     4,
-    //     &app_manager_hc_sr04_task_handle,
-    //     1);
+    task_utils_create_task(
+        hc_sr04_measure,
+        "hc_sr04_measure",
+        8192,
+        NULL,
+        4,
+        &app_manager_hc_sr04_task_handle,
+        1);
 }
 
 void app_manager_create_main_task()
