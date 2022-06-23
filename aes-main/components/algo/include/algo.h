@@ -14,6 +14,8 @@
 #include "esp_log.h"
 #include "task_utils.h"
 
+#include "final_heading.h"
+
 #include "inv_mpu.h"
 
 // constants
@@ -28,20 +30,14 @@
 
 // structs
 
-// typedef struct algo_euler_angles_type_tag
-// {
-// float pitch;
-// float yaw;
-// float roll;
-// } algo_euler_angles_type;
-
 typedef struct algo_ble_data_type_tag
 {
     float current_heading;
     float pos_x;
     float pos_y;
-    float desired_heading;
-    uint8_t obstacle_avoidance_heading_sector;
+    final_heading_behaviour_state_type behaviour_state;
+    float goal_heading;
+    float follow_wall_heading;
     float final_heading;
 } algo_ble_data_type;
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef _DESIRED_HEADING_H
-#define _DESIRED_HEADING_H
+#ifndef _GOAL_HEADING_H
+#define _GOAL_HEADING_H
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -19,10 +19,11 @@
 // structs
 
 // global variables
-extern float algo_desired_heading;
+extern float algo_goal_heading;
 
 // function declarations
-void desired_heading_init();
-void desired_heading_calculate();
+void goal_heading_init();
+void goal_heading_calculate();
+float goal_heading_distance_to_goal();
 
 #endif

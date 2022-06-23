@@ -4,7 +4,8 @@
 
 #include "hc_sr04.h"
 #include "heading_imu.h"
-#include "desired_heading.h"
+#include "goal_heading.h"
+#include "calc_utils.h"
 
 #include "esp_log.h"
 #include "esp_err.h"
@@ -73,7 +74,7 @@ static const float hc_sr04_sensor_regions[NUMBER_OF_HC_SR04_SENSORS] = {
 #define REGION_ANGLE (M_PI / NUMBER_OF_HC_SR04_SENSORS)
 
 // global variables
-float algo_obstacle_avoidance_steering_angle;
+float algo_obstacle_avoidance_angle;
 uint8_t algo_obstacle_avoidance_heading_sector;
 uint8_t algo_obstacle_avoidance_danger_level_in_heading;
 float algo_follow_wall_angle;
@@ -185,14 +186,19 @@ void obstacle_avoidance_calculate()
 void calculate_obstacle_avoidance_angle()
 {
     float angle_to_obstacle = algo_current_heading + hc_sr04_sensor_regions[most_dangerous_sector];
-    float cw = angle_to_obstacle + M_PI;
-    float ccw = angle_to_obstacle - M_PI;
+    float angle_obstacle_avoidance = ANGLE_SAFEGUARD(angle_to_obstacle + M_PI);
+    /**
+     * @todo Check that we may need angle safeguard here.
+     * Will there be problems when the angles below go beyond the wanted range?
+     */
+    float cw = angle_to_obstacle - (M_PI / 2.0);
+    float ccw = angle_to_obstacle + (M_PI / 2.0);
 
     /**
      * @brief If clockwise direction is closer to the desired heading, choose it.
      * Otherwise, choose the counter-clockwise direction.
      */
-    if (fabsf((algo_desired_heading - cw)) < fabsf((algo_desired_heading - ccw)))
+    if (fabsf((algo_goal_heading - cw)) < fabsf((algo_goal_heading - ccw)))
     {
         algo_follow_wall_angle = cw;
     }
@@ -200,6 +206,7 @@ void calculate_obstacle_avoidance_angle()
     {
         algo_follow_wall_angle = ccw;
     }
+    algo_obstacle_avoidance_angle = angle_obstacle_avoidance;
 }
 
 void check_left_sector(int sector_to_check, int *safe_sector)

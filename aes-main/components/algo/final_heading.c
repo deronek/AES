@@ -1,35 +1,81 @@
 #include "final_heading.h"
 
 #include "obstacle_avoidance.h"
-#include "desired_heading.h"
+#include "goal_heading.h"
 
 #include <math.h>
 
 // global variables
 float algo_final_heading;
+final_heading_behaviour_state_type final_heading_behaviour_state = BEHAVIOUR_DRIVE_TO_GOAL;
+
+// local variables
+float distance_to_goal;
+
+// function declarations
+
+static void final_heading_run_state();
+static void final_heading_output();
+
+// inline function definitions
+
+// function definitions
 
 void final_heading_init()
 {
+    final_heading_reset();
 }
 
 void final_heading_calculate()
 {
-    // /**
-    //  * @brief Calculate final heading angle.
-    //  * We use waged calculation based on danger level in heading direction.
-    //  * If it's high, focus on avoiding the obstacle.
-    //  * If it's low, focus on driving to the desired heading.
-    //  */
-    // float avoidance_weight = algo_obstacle_avoidance_danger_level_in_heading / DANGER_LEVEL_MAX;
+    /**
+     * @brief Run state machine transition, then calculate final heading output.
+     */
+    final_heading_run_state();
+    final_heading_output();
+}
 
-    // algo_final_heading = (avoidance_weight * algo_obstacle_avoidance_steering_angle + algo_desired_heading) / (avoidance_weight + 1);
-
-    if (algo_follow_wall_angle == INFINITY)
+void final_heading_run_state()
+{
+    switch (final_heading_behaviour_state)
     {
-        algo_final_heading = algo_desired_heading;
+    case BEHAVIOUR_DRIVE_TO_GOAL:
+        /**
+         * @brief Obstacle is nearby, transition into following the wall.
+         */
+        if (algo_follow_wall_angle != INFINITY)
+        {
+            final_heading_behaviour_state = BEHAVIOUR_FOLLOW_THE_WALL;
+            distance_to_goal = goal_heading_distance_to_goal();
+        }
+        break;
+    case BEHAVIOUR_FOLLOW_THE_WALL:
+        /**
+         * @brief Check condition for transitioning back to driving to goal:
+         * - progress made to goal (lower distance than at the start),
+         * - goal heading and obstacle avoidance angle is less than M_PI / 2.
+         */
+        if ((goal_heading_distance_to_goal() < distance_to_goal) && (fabsf(algo_goal_heading - algo_obstacle_avoidance_angle) < (M_PI / 2)))
+        {
+            final_heading_behaviour_state = BEHAVIOUR_DRIVE_TO_GOAL;
+        }
     }
-    else
+}
+
+void final_heading_output()
+{
+    switch (final_heading_behaviour_state)
     {
+    case BEHAVIOUR_DRIVE_TO_GOAL:
+        algo_final_heading = algo_goal_heading;
+        break;
+    case BEHAVIOUR_FOLLOW_THE_WALL:
         algo_final_heading = algo_follow_wall_angle;
+        break;
     }
+}
+
+void final_heading_reset()
+{
+    final_heading_behaviour_state = BEHAVIOUR_DRIVE_TO_GOAL;
 }

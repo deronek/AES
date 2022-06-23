@@ -204,37 +204,38 @@ TASK position_photo_encoder_process()
             continue;
         }
 
-        switch (event)
-        {
-        case PHOTO_ENCODER_L_WIDTH:
-        {
-            delta_left += WIDTH_STRIPE_M;
-            break;
-        }
+        // switch (event)
+        // {
+        // case PHOTO_ENCODER_L_WIDTH:
+        // {
+        //     delta_left += WIDTH_STRIPE_M;
+        //     break;
+        // }
 
-        case PHOTO_ENCODER_L_DISTANCE:
-        {
-            delta_left += DISTANCE_STRIPE_M;
-            break;
-        }
+        // case PHOTO_ENCODER_L_DISTANCE:
+        // {
+        //     delta_left += DISTANCE_STRIPE_M;
+        //     break;
+        // }
 
-        case PHOTO_ENCODER_R_WIDTH:
-        {
-            delta_right += WIDTH_STRIPE_M;
-            break;
-        }
+        // case PHOTO_ENCODER_R_WIDTH:
+        // {
+        //     delta_right += WIDTH_STRIPE_M;
+        //     break;
+        // }
 
-        case PHOTO_ENCODER_R_DISTANCE:
-        {
-            delta_right += DISTANCE_STRIPE_M;
-            break;
-        }
+        // case PHOTO_ENCODER_R_DISTANCE:
+        // {
+        //     delta_right += DISTANCE_STRIPE_M;
+        //     break;
+        // }
 
-        default:
-            break;
-        }
+        // default:
+        //     break;
+        // }
 
-        float delta_center = (delta_left + delta_right) / 2;
+        // float delta_center = (delta_left + delta_right) / 2;
+        float delta_center = DISTANCE_STRIPE_M / 2.0;
 
         /**
          * @brief Read current heading. This read is atomic.

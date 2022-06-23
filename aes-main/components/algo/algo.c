@@ -4,7 +4,7 @@
 #include "data_receive.h"
 #include "heading_imu.h"
 #include "position.h"
-#include "desired_heading.h"
+#include "goal_heading.h"
 #include "final_heading.h"
 #include "obstacle_avoidance.h"
 #include "photo_encoder.h"
@@ -73,8 +73,8 @@ void algo_init()
     photo_encoder_init();
     obstacle_avoidance_init();
     heading_imu_init();
-    desired_heading_init();
-    final_heading_calculate();
+    goal_heading_init();
+    final_heading_init();
     motor_init();
 }
 
@@ -220,6 +220,7 @@ void algo_cleanup()
 
     position_reset();
     heading_imu_reset();
+    final_heading_reset();
 
     algo_stop_requested = false;
 
@@ -233,8 +234,9 @@ void algo_ble_send()
     ble_data.current_heading = algo_current_heading * RAD_TO_DEG;
     ble_data.pos_x = algo_position.x;
     ble_data.pos_y = algo_position.x;
-    // ble_data.desired_heading = algo_desired_heading * RAD_TO_DEG;
-    // ble_data.obstacle_avoidance_heading_sector = algo_obstacle_avoidance_heading_sector;
+    ble_data.behaviour_state = final_heading_behaviour_state;
+    ble_data.goal_heading = algo_goal_heading;
+    ble_data.follow_wall_heading = algo_follow_wall_angle;
     ble_data.final_heading = algo_final_heading;
 
     ble_send_from_task(TASK_ID_ALGO, &ble_data);
@@ -243,7 +245,7 @@ void algo_ble_send()
 void algo_run()
 {
     heading_imu_calculate();
-    desired_heading_calculate();
+    goal_heading_calculate();
     obstacle_avoidance_calculate();
 
     if (algo_obstacle_avoidance_heading_sector == 255)
@@ -257,7 +259,7 @@ void algo_run()
     motor_control_input_data_type motor_control;
     motor_control.current_heading = algo_current_heading;
     motor_control.desired_heading = algo_final_heading;
-    // motor_control.desired_heading = algo_desired_heading;
+    // motor_control.desired_heading = algo_goal_heading;
 
     motor_tick(motor_control);
 

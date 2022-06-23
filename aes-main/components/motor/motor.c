@@ -1,6 +1,8 @@
 #include "motor.h"
 
 #include "algo.h"
+#include "calc_utils.h"
+
 #include "driver/mcpwm.h"
 
 #include <math.h>
@@ -31,7 +33,6 @@
 #define PWM1_GPIO_NUM GPIO_NUM_17
 #define PWM2_GPIO_NUM GPIO_NUM_16
 
-#define ANGLE_SAFEGUARD(x) (atan2f(sinf(x), cosf(x)))
 #define RAD_TO_DEG (180.0 / M_PI)
 #define DEG_TO_RAD (M_PI / 180.0)
 

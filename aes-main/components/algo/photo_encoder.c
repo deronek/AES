@@ -15,15 +15,6 @@
 
 // constants
 
-// number of stripes on the wheel encoder
-#define N (20)
-
-// diameter of wheel in micrometers
-#define D (59 * 1000)
-
-// radius of wheel
-#define R (D / 2)
-
 // // distance of full wheel turn
 // #define DIST_FULL_TURN (2 * M_PI * R)
 
@@ -58,14 +49,15 @@ static void photo_encoder_l_isr(void *arg)
     int level = gpio_get_level(PHOTO_ENCODER_GPIO_PIN_L);
     photo_encoder_event_type event_type;
 
-    if (level)
-    {
-        event_type = PHOTO_ENCODER_L_WIDTH;
-    }
-    else
-    {
-        event_type = PHOTO_ENCODER_L_DISTANCE;
-    }
+    // if (level)
+    // {
+    //     event_type = PHOTO_ENCODER_L_WIDTH;
+    // }
+    // else
+    // {
+    //     event_type = PHOTO_ENCODER_L_DISTANCE;
+    // }
+    event_type = PHOTO_ENCODER_L;
 
     retval = xQueueSendFromISR(photo_encoder_event_queue, &event_type, &higher_task_woken);
     if (retval == errQUEUE_FULL)
@@ -83,14 +75,15 @@ static void photo_encoder_r_isr(void *arg)
     int level = gpio_get_level(PHOTO_ENCODER_GPIO_PIN_R);
     photo_encoder_event_type event_type;
 
-    if (level)
-    {
-        event_type = PHOTO_ENCODER_R_WIDTH;
-    }
-    else
-    {
-        event_type = PHOTO_ENCODER_R_DISTANCE;
-    }
+    // if (level)
+    // {
+    //     event_type = PHOTO_ENCODER_R_WIDTH;
+    // }
+    // else
+    // {
+    //     event_type = PHOTO_ENCODER_R_DISTANCE;
+    // }
+    event_type = PHOTO_ENCODER_R;
 
     retval = xQueueSendFromISR(photo_encoder_event_queue, &event_type, &higher_task_woken);
     if (retval == errQUEUE_FULL)

@@ -7,6 +7,10 @@
 #include "esp_log.h"
 
 // constants
+/**
+ * @brief Makes sure that angles are in range of [-M_PI, M_PI].
+ */
+#define ANGLE_SAFEGUARD(x) (atan2f(sinf(x), cosf(x)))
 
 // enums
 

@@ -8,23 +8,37 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
+#include <math.h>
+
 // constants
 
-// width of a stripe on the wheel encoder in micrometers
-#define WIDTH_STRIPE_UM (3862)
-#define WIDTH_STRIPE_M (WIDTH_STRIPE_UM / 1000000.0)
+// // width of a stripe on the wheel encoder in micrometers
+// #define WIDTH_STRIPE_UM (3862)
+// #define WIDTH_STRIPE_M (WIDTH_STRIPE_UM / 1000000.0)
 
-// distance between two stripes on the wheel encoder in micrometers
-#define DISTANCE_STRIPE_UM (5408)
+// // distance between two stripes on the wheel encoder in micrometers
+// #define DISTANCE_STRIPE_UM (5408)
+// #define DISTANCE_STRIPE_M (DISTANCE_STRIPE_UM / 1000000.0)
+
+// number of stripes on the wheel encoder
+#define N (20)
+
+// diameter of wheel in micrometers
+#define D (59 * 1000)
+
+// radius of wheel
+#define R (D / 2)
+
+#define PHOTO_ENCODER_CORRECTION_COEFFICIENT (1.0)
+
+#define DISTANCE_STRIPE_UM (D * M_PI / N * PHOTO_ENCODER_CORRECTION_COEFFICIENT / 2.0)
 #define DISTANCE_STRIPE_M (DISTANCE_STRIPE_UM / 1000000.0)
 
 // enums
 typedef enum photo_encoder_event_type_tag
 {
-    PHOTO_ENCODER_L_WIDTH,
-    PHOTO_ENCODER_L_DISTANCE,
-    PHOTO_ENCODER_R_WIDTH,
-    PHOTO_ENCODER_R_DISTANCE,
+    PHOTO_ENCODER_L,
+    PHOTO_ENCODER_R,
 } photo_encoder_event_type;
 
 // structs

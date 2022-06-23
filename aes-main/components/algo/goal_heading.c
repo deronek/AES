@@ -1,4 +1,4 @@
-#include "desired_heading.h"
+#include "goal_heading.h"
 
 #include "algo.h"
 #include "data_receive.h"
@@ -10,10 +10,10 @@
 #define DEG_TO_RAD (M_PI / 180.0)
 
 // global variables
-float algo_desired_heading;
+float algo_goal_heading;
 
 // local variables
-static const char *TAG = "algo-desired-heading";
+static const char *TAG = "algo-goal-heading";
 
 /**
  * @brief Refactor all of below data as parameters (maybe passed via BLE).
@@ -30,7 +30,7 @@ static float ys = 0.0;
 /**
  * @brief (xf, yf) - coordinates of the finish point.
  */
-static float xf = -3.96;
+static float xf = 3.96;
 static float yf = 2.0;
 
 /**
@@ -41,15 +41,24 @@ static float x_hat = 3.96;
 static float y_hat = 6.6;
 
 // function definitions
-void desired_heading_init()
+void goal_heading_init()
 {
 }
 
-void desired_heading_calculate()
+void goal_heading_calculate()
 {
     float a = xf - algo_position.x;
     float b = yf - algo_position.y;
 
-    algo_desired_heading = atan2f(a, b);
-    ESP_LOGI(TAG, "Desired heading: %.2f", RAD_TO_DEG * algo_desired_heading);
+    algo_goal_heading = atan2f(a, b);
+    ESP_LOGI(TAG, "Desired heading: %.2f", RAD_TO_DEG * algo_goal_heading);
+}
+
+float goal_heading_distance_to_goal()
+{
+    float delta_x = algo_position.x - xf;
+    float delta_y = algo_position.y - yf;
+    float distance = sqrtf((delta_x * delta_x + delta_y * delta_y));
+
+    return distance;
 }
