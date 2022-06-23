@@ -17,14 +17,10 @@ FONT = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 80)
 # CONNECTION_STATUS = ConnectionStatus.CONNECTED
 
 
-def draw_connection_status(connected: bool):
-    con_status = pygame.Surface(SIZE)
-    con_status_rect = pygame.Rect(0, 0, *SIZE)
+def draw_connection_status(surface: pygame.Surface, connected: bool):
 
     if connected:
         status = FONT.render("CONNECTED", False, GREEN)
     else:
         status = FONT.render("NOT CONNECTED", False, RED)
-    con_status.blit(status, (0, 0))
-
-    return con_status
+    surface.blit(status, (0, 0))

@@ -115,7 +115,7 @@ def draw_radar(distance) -> Surface:
     for angle in ANGLES:
         end_point = START_POINT_LINES + END_POINT_VECTOR.rotate(angle)
         pygame.draw.line(radar, WHITE, START_POINT_LINES, end_point, LINE_THICKNESS)
-    # pygame.draw.line(radar, WHITE, START_POINT_LINES, (600, 600))
+    pygame.draw.line(radar, WHITE, START_POINT_LINES, (600, 600))
     # pygame.draw.arc(WIN, WHITE, [300, 300, 100, 100], RAD_NEG90, RAD90, 5)
 
     return radar

@@ -11,6 +11,7 @@ import bleak
 from bleak import BleakClient, BleakError
 
 from app_manager import AppManagerState
+from behaviour import BehaviourState
 
 
 class SensorID(Enum):
@@ -71,16 +72,22 @@ class HcSr04(LockedData):
 
 class Algo(LockedData):
     class Data:
-        heading: float
+        current_heading: float
         pos_x: float
         pos_y: float
+        behaviour: BehaviourState
+        goal_heading: float
+        follow_wall_heading: float
 
         def __init__(self, data: list):
             # TODO: data should be bytes in LockedData, not list
             # print(data)
-            self.heading = struct.unpack('f', bytes(data[0:4]))[0]
+            self.current_heading = struct.unpack('f', bytes(data[0:4]))[0]
             self.pos_x = struct.unpack('f', bytes(data[4:8]))[0]
             self.pos_y = struct.unpack('f', bytes(data[8:12]))[0]
+            self.behaviour = BehaviourState(int.from_bytes(bytes(data[12:16]), byteorder='little'))
+            self.goal_heading = struct.unpack('f', bytes(data[16:20]))[0]
+            self.follow_wall_heading = struct.unpack('f', bytes(data[20:24]))[0]
 
     def __init__(self):
         super().__init__()
