@@ -5,7 +5,7 @@ import pygame
 
 from constants import GREEN, RED, ASSETS_DIR, GRAY, WHITE, BLACK
 
-pygame.init()
+
 SIZE = (250, 250)
 FONT = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 100)
 
