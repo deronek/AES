@@ -12,8 +12,8 @@
  * Minimum vehicle speed should be set as lowest value which do not make motors
  * turn (because of motor/tracks/ground friction).
  */
-#define SPEED_MIN (5.0F)
-#define SPEED_MAX (20.0F)
+#define SPEED_MIN (8.0F)
+#define SPEED_MAX (22.0F)
 
 #define PWM_FREQUENCY 5000U
 
@@ -171,6 +171,8 @@ void motor_tick(motor_control_input_data_type input_data)
 
     ESP_LOGI(TAG, "Omega: %.2f", omega * RAD_TO_DEG);
 
+    // omega = 0.0;
+
     /**
      * @brief PWM calculation will result in values between 0 and 1.
      */
@@ -236,7 +238,7 @@ void motor_perform_control()
     gpio_set_level(DIR1_GPIO_NUM, motor_control_output_data.dir1);
     gpio_set_level(DIR2_GPIO_NUM, motor_control_output_data.dir2);
 
-    // ESP_LOGI(TAG, "PWM1 = %.1f, PWM2 = %.1f", motor_control_output_data.pwm1, motor_control_output_data.pwm2);
+    ESP_LOGI(TAG, "PWM1 = %.1f, PWM2 = %.1f", motor_control_output_data.pwm1, motor_control_output_data.pwm2);
 
     ESP_ERROR_CHECK(mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A, motor_control_output_data.pwm1));
     ESP_ERROR_CHECK(mcpwm_set_duty(MCPWM_UNIT_1, MCPWM_TIMER_0, MCPWM_GEN_A, motor_control_output_data.pwm2));

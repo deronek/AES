@@ -20,8 +20,8 @@ typedef struct accel_velocity_type_tag
 // constants
 /**
  * @brief Complementary filter coefficient for final position estimation.
- * Values closer to 0 favor accelerometer measurements.
- * Values closer to 1 favor photo encoders measurements.
+ * Values closer to 0 favor photo encoders measurements.
+ * Values closer to 1 favor accelerometer measurements.
  */
 #define POSITION_COMP_FILTER_ALPHA (0.05)
 #define G_UNIT_TO_M_S2 (9.80665)
@@ -156,7 +156,7 @@ TASK position_process()
         position.y = (POSITION_COMP_FILTER_ALPHA * accel_y) +
                      ((1 - POSITION_COMP_FILTER_ALPHA) * photo_encoder_position.y);
 
-        // ESP_LOGI(TAG, "x: %.2f cm, y: %.2f cm", position.x * 100, position.y * 100);
+        ESP_LOGI(TAG, "x: %.2f cm, y: %.2f cm", position.x * 100, position.y * 100);
 
         xQueueOverwriteFromISR(algo_position_queue, &position, NULL);
         // xQueueOverwrite(algo_position_queue, &position);
@@ -247,8 +247,8 @@ TASK position_photo_encoder_process()
         /**
          * @todo Try to use sincosf instead here, might be faster.
          */
-        pos.x += delta_center * cosf(heading);
-        pos.y += delta_center * sinf(heading);
+        pos.x += delta_center * sinf(heading);
+        pos.y += delta_center * cosf(heading);
 
         xQueueOverwriteFromISR(photo_encoder_position_queue, &pos, NULL);
         // xQueueOverwrite(photo_encoder_position_queue, &pos);

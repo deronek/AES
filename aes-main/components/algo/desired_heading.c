@@ -30,7 +30,7 @@ static float ys = 0.0;
 /**
  * @brief (xf, yf) - coordinates of the finish point.
  */
-static float xf = 3.96;
+static float xf = -3.96;
 static float yf = 2.0;
 
 /**
