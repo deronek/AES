@@ -54,8 +54,8 @@
  * @todo Adjust these values.
  */
 #define kP (20.0)
-#define kD (2.0)
-#define kI (1.0)
+#define kD (1.0)
+#define kI (0.5)
 
 // structs
 /**

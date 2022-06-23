@@ -233,8 +233,8 @@ void algo_ble_send()
     ble_data.current_heading = algo_current_heading * RAD_TO_DEG;
     ble_data.pos_x = algo_position.x;
     ble_data.pos_y = algo_position.x;
-    ble_data.desired_heading = algo_desired_heading * RAD_TO_DEG;
-    ble_data.obstacle_avoidance_heading_sector = algo_obstacle_avoidance_heading_sector;
+    // ble_data.desired_heading = algo_desired_heading * RAD_TO_DEG;
+    // ble_data.obstacle_avoidance_heading_sector = algo_obstacle_avoidance_heading_sector;
     ble_data.final_heading = algo_final_heading;
 
     ble_send_from_task(TASK_ID_ALGO, &ble_data);

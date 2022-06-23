@@ -352,11 +352,20 @@ TASK hc_sr04_measure()
 #ifdef HC_SR04_MAP_SENSORS
                 measurement_index = hc_sr04_sensor_mapping[measurement_index];
 #endif
-                // ESP_LOGI(TAG, "index %d", measurement_index);
                 /**
-                 * @todo Calculate this offset only if measurement is not zero (successful measurement).
+                 * @brief Calculate distance measurement from pulse duration.
+                 * If measurement was not successful, put 2 meters (no obstacle).
                  */
-                volatile uint32_t distance = hc_sr04_calculate_distance(rx_durations[echo]) - hc_sr04_distance_offset[measurement_index];
+                volatile uint32_t distance;
+                if (rx_durations[echo])
+                {
+                    distance = hc_sr04_calculate_distance(rx_durations[echo]) - hc_sr04_distance_offset[measurement_index];
+                }
+                else
+                {
+                    distance = 2000000;
+                }
+
                 // ESP_LOGI(TAG, "Distance %d", distance);
 
                 // ESP_LOGI(TAG, "Distance %d", distance);
