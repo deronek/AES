@@ -11,7 +11,7 @@ import asyncio
 import os
 from buttons import Buttons
 from constants import BLACK
-from app_manager import draw_app_manager
+from app_manager import draw_app_manager, AppManagerState
 from timestamp import draw_timestamp
 import math
 from heading import draw_heading
@@ -64,28 +64,27 @@ class AESController:
     async def draw_window(self):
         #global angle1
         #angle1 += 1
-        distance = [0, 0, 0, 0, 0, 0, 0, 0]
+
         self.handle_events()
         # WIN.fill(BLACK)
-        timestamp = 0
-        app_manager_state = 0
+        timestamp = AppManagerState.APP_MANAGER_INIT
+        app_manager_state = AppManagerState.APP_MANAGER_INIT
         self.window.blit(draw_heading(angle=0), (200, 800))
-        self.window.blit(draw_radar(distance), (37, 137))
-
-
 
 
         if self.ble.hc_sr04.available:
             distance = await self.ble.hc_sr04.get_data()
             #distance = [90000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
             self.window.blit(draw_radar(distance.distance), (37, 137))
-        #self.window.blit(draw_radar(distance), (37, 137))
+            #self.window.blit(draw_radar(distance), (37, 137))
+        else:
+            distance = [0, 0, 0, 0, 0, 0, 0, 0]
+            self.window.blit(draw_radar(distance), (37, 137))
 
 
-
-        if self.ble.hc_sr04.available:
-            app_manager_state = await self.ble.app_manager.get_data()
-            timestamp = self.ble.timestamp
+        #if self.ble.hc_sr04.available:
+        #app_manager_state = await self.ble.app_manager.get_data()
+        #timestamp = self.ble.timestamp
         #self.window.blit(draw_radar(distance.distance), (37, 137))
 
             # distance = [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
@@ -103,7 +102,6 @@ class AESController:
         # await asyncio.sleep(1)
 
         # distance = []
-
         self.window.blit(draw_connection_status(self.ble.client.is_connected), (35, 20))
         self.window.blit(draw_timestamp(timestamp), (975, 50))
         self.window.blit(draw_app_manager(app_manager_state), (1300, 200))
