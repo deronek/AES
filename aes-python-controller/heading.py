@@ -56,7 +56,7 @@ def draw_heading(current_heading: float, goal_heading: Optional[float], follow_w
 
     if goal_heading:
         arrow(heading, GREEN, goal_heading)
-    if follow_wall_angle:
+    if follow_wall_angle and follow_wall_angle != math.inf:
         arrow(heading, RED, follow_wall_angle)
 
     # rotated = heading.get_rect(center=(-50, 50))
