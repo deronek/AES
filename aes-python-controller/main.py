@@ -1,3 +1,5 @@
+import random
+
 import pygame
 
 pygame.font.init()
@@ -19,6 +21,8 @@ import ctypes
 import pygame_widgets
 from ble import BLE
 
+import numpy as np
+
 # fix scaling on Windows
 if os.name == 'nt':
     ctypes.windll.user32.SetProcessDPIAware()
@@ -34,7 +38,7 @@ BUTTONS_RECT = pygame.Rect(1500, 750, 420, 330)
 
 FPS = 30
 
-
+#angle1 = 0
 # os.environ['PYTHONASYNCIODEBUG'] = '1'
 
 
@@ -55,16 +59,23 @@ class AESController:
         # init_buttons()
 
     async def draw_window(self):
+        #global angle1
+        #angle1 += 1
         self.handle_events()
         # WIN.fill(BLACK)
-        # distance = [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
         if self.ble.hc_sr04.available:
             distance = await self.ble.hc_sr04.get_data()
+            #distance = [900000, 200000, 300000, 400000, 500000, 600000, 700000, 800000]
             self.window.blit(draw_radar(distance.distance), (37, 137))
+            #self.window.blit(draw_radar(distance), (37, 137))
         if self.ble.algo.available:
             algo = await self.ble.algo.get_data()
             print(algo.heading)
             self.window.blit(draw_heading(angle=algo.heading), (200, 800))
+            #self.window.blit(draw_heading(angle=angle1), (200, 800))
+
+        # await asyncio.sleep(1)
+
         # distance = []
 
         self.window.blit(draw_connection_status(self.ble.client.is_connected), (35, 20))
@@ -72,7 +83,7 @@ class AESController:
         self.window.blit(draw_timestamp(), (1170, 50))
         self.window.blit(draw_app_manager(), (1300, 200))
         self.buttons.draw()
-        # WIN.blit(draw_buttons(), (0, 0))
+        #WIN.blit(draw_buttons(), (0, 0))
 
         # pygame_widgets.update(events)
         pygame.display.update()
