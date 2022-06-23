@@ -5,6 +5,9 @@ import pygame
 
 from constants import GREEN, RED, ASSETS_DIR, GRAY, WHITE, BLACK
 
+heading = 0
+
+
 
 SIZE = (250, 250)
 FONT = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 100)
@@ -12,7 +15,7 @@ FONT = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 100)
 
 def draw_heading(angle):
     img = pygame.image.load('spidercar.png')
-    # img.set_colorkey((0, 0, 0))
+    img.set_colorkey((0, 0, 0))
     heading = pygame.Surface(SIZE)
     heading.fill(BLACK)
     # heading_rect = pygame.Rect(0, 0, *SIZE)

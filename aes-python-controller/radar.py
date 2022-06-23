@@ -77,12 +77,24 @@ class RadarMarkers:
 
 RADAR_MARKERS = RadarMarkers()
 
+
+
+
+
+
 def draw_radar(distance) -> Surface:
     radar = pygame.Surface((1000, 505), pygame.SRCALPHA)
     # radar.fill(BLACK)
     radar_rect = pygame.Rect(0, 0, *SIZE)
     pygame.draw.arc(radar, WHITE, (0, 0, 1000, 1000), RAD0, RAD180, LINE_THICKNESS)
     pygame.draw.line(radar, WHITE, (0, RADAR_RADIUS), (500, RADAR_RADIUS), LINE_THICKNESS)
+    # radar = pygame.Surface((1000, 505), pygame.SRCALPHA)
+    # # radar.fill(BLACK)
+    # radar_rect = pygame.Rect(0, 0, *SIZE)
+    # pygame.draw.arc(radar, WHITE, (0, 0, 1000, 1000), RAD0, RAD180, LINE_THICKNESS)
+    # pygame.draw.line(radar, WHITE, (0, RADAR_RADIUS), (500, RADAR_RADIUS), LINE_THICKNESS)
+
+
     #pygame.draw.arc(radar, RED, (-250, 0, 1000, 1000), math.radians(0), math.radians(22.5), LINE_THICKNESS)
 
     # print(len(RADAR_MARKERS.markers_list))

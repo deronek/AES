@@ -10,6 +10,7 @@ SIZE = (1000, 200)
 FONT = pygame.font.Font(os.path.join(ASSETS_DIR, 'NotoSansMono-Regular.ttf'), 70)
 # FONT = pygame.font.SysFont('monospace', 80)
 
+
 def draw_timestamp(timestamp: int):
     surface = pygame.Surface(SIZE)
     # timestamp_rect = pygame.Rect(0, 0, *SIZE)
