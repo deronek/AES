@@ -1,6 +1,7 @@
 #include "app_manager.h"
 #include "position.h"
 #include "photo_encoder.h"
+#include "reflectance.h"
 
 #include "driver/gpio.h"
 #include "freertos/task.h"
@@ -29,7 +30,8 @@ TaskHandle_t app_manager_algo_task_handle,
     app_manager_state_send_task_handle,
     app_manager_ble_main_task_handle,
     app_manager_ble_heartbeat_task_handle,
-    app_manager_init_task_handle;
+    app_manager_init_task_handle,
+    app_manager_reflectance_task_handle;
 
 // function declarations
 static void app_manager_run();
@@ -95,6 +97,7 @@ void app_manager_init_peripherals()
 
     mpu9255_init();
     hc_sr04_init();
+    reflectance_init();
     ble_init();
 }
 
@@ -181,6 +184,18 @@ void app_manager_create_sensor_tasks()
         NULL,
         4,
         &app_manager_hc_sr04_task_handle,
+        1);
+
+    /**
+     * @brief Reflectance sensors task
+     */
+    task_utils_create_task(
+        reflectance_main,
+        "reflectance_main",
+        4096,
+        NULL,
+        4,
+        &app_manager_reflectance_task_handle,
         1);
 }
 

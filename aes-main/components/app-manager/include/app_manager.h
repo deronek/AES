@@ -67,7 +67,8 @@ extern TaskHandle_t app_manager_algo_task_handle,
     app_manager_main_task_handle,
     app_manager_hc_sr04_task_handle,
     app_manager_ble_task_handle,
-    app_manager_init_task_handle;
+    app_manager_init_task_handle,
+    app_manager_reflectance_task_handle;
 
 extern app_manager_state_type app_manager_state;
 extern QueueHandle_t app_manager_event_queue;
