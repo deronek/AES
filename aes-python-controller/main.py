@@ -49,6 +49,11 @@ class AESController:
     buttons: Buttons
     window: pygame.Surface
 
+    heading: float
+
+    def __init__(self):
+        self.heading = 0.0
+
     def init_window(self):
         pygame.init()
         self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN, display=0)
@@ -67,9 +72,8 @@ class AESController:
 
         self.handle_events()
         # WIN.fill(BLACK)
-        timestamp = AppManagerState.APP_MANAGER_INIT
+        timestamp = 0
         app_manager_state = AppManagerState.APP_MANAGER_INIT
-        self.window.blit(draw_heading(angle=0), (200, 800))
 
 
         if self.ble.hc_sr04.available:
@@ -95,8 +99,8 @@ class AESController:
 
         if self.ble.algo.available:
             algo = await self.ble.algo.get_data()
-            print(algo.heading)
-            self.window.blit(draw_heading(angle=algo.heading), (200, 800))
+            self.heading = algo.heading
+        self.window.blit(draw_heading(angle=self.heading), (200, 800))
             #self.window.blit(draw_heading(angle=angle1), (200, 800))
 
         # await asyncio.sleep(1)
