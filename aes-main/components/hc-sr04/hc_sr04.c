@@ -185,49 +185,10 @@ void hc_sr04_init()
         ESP_LOGI(TAG, "Initialized echo pin at GPIO %d, RB handle: %p", pin, hc_sr04_rb_handles[i]);
     }
 
-    // for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
-    // {
-    //     // GPIO init
-    //     hc_sr04_gpio_type sensor_gpio = hc_sr04_gpio[i];
-
-    //     // TRIG pin
-    //     gpio_reset_pin(sensor_gpio.trig_pin);
-    //     gpio_set_direction(sensor_gpio.trig_pin, GPIO_MODE_OUTPUT);
-
-    //     /**
-    //      * @brief We do not need ECHO pin initialization
-    //      * when we use RMT.
-    //      */
-    //     /*
-    //     // ECHO pin
-    //     gpio_reset_pin(sensor_gpio.echo_pin);
-    //     gpio_set_direction(sensor_gpio.echo_pin, GPIO_MODE_INPUT);
-    //     gpio_set_intr_type(sensor_gpio.echo_pin, GPIO_INTR_ANYEDGE);
-
-    //     // out init
-    //     hc_sr04_data.time[i] = HC_SR04_INIT_VALUE;*/
-
-    //     rmt_config_t rmt_rx;
-    //     rmt_rx.channel = i;
-    //     rmt_rx.gpio_num = sensor_gpio.echo_pin;
-    //     rmt_rx.clk_div = RMT_CLK_DIV;
-    //     rmt_rx.mem_block_num = 1;
-    //     rmt_rx.rmt_mode = RMT_MODE_RX;
-    //     rmt_rx.rx_config.filter_en = true;
-    //     rmt_rx.rx_config.filter_ticks_thresh = 100;
-    //     rmt_rx.rx_config.idle_threshold = rmt_item32_tIMEOUT_US / 10 * (RMT_TICK_10_US);
-    //     rmt_config(&rmt_rx);
-    //     rmt_driver_install(rmt_rx.channel, 1000, 0);
-    // }
-
     /**
      * @brief Construct data queue
      */
-    // hc_sr04_queue_data = malloc(sizeof(QueueHandle_t));
-    // if (hc_sr04_queue_data == NULL)
-    // {
-    //     abort();
-    // }
+
     if ((hc_sr04_queue_data = xQueueCreate(1, sizeof(hc_sr04_data_type))) == NULL)
     {
         abort();
@@ -237,28 +198,12 @@ void hc_sr04_init()
 TASK hc_sr04_measure()
 {
     size_t rx_size = 0;
-    // ESP_LOGI(TAG, "RB data %p %p", (void *)data, (void *)(&data));
-
-    // ESP_LOGI(TAG, "Handles %p", &hc_sr04_rb_handles);
-    // ESP_LOGI(TAG, "Queue %p", &hc_sr04_queue_data);
-    // ESP_LOGI(TAG, "Data %p", &hc_sr04_data);
 
     for (;;)
     {
         int val;
 
-        /**
-         * @todo Refactor this to use sensor pairs.
-         * Think of how to actually connect 8 sensors.
-         * Because of the pairs, we can probably only use
-         * 2 pins for ECHO (add diodes of course).
-         *
-         * So, can we also only use 4 pins for TRIG? (triggering
-         * pair at the same time).
-         * Sensor will be connected probably be connected
-         * in pairs like 1-5, 2-6, 3-7, 4-8 to minimize
-         * sensor intereference.
-         */
+        vTaskDelay(MEASUREMENT_DELAY_TIME);
         for (int trig = 0; trig < NUMBER_OF_TRIG_PINS; ++trig)
         {
             // ESP_LOGI(TAG, "Trig %d", trig);
@@ -279,7 +224,8 @@ TASK hc_sr04_measure()
             /**
              * @todo Change this delay to actually 10 us if possible.
              * Current implementation is slower this way and it is probable
-             * that we miss some echo pulses this way.
+             * that we miss some echo pulses this way (depends on whether the sensor
+             * starts transmission on positive or negative edge).
              * We can do it via interrupt and High Resolution timer.
              */
             vTaskDelay(pdMS_TO_TICKS(1));
@@ -334,20 +280,6 @@ TASK hc_sr04_measure()
                 ticks_to_wait -= xTaskGetTickCount() - start;
             }
 
-            // /**
-            //  * @todo Maybe refactor distance calculation for other
-            //  * situation than pairs. Just hardcoded for 2 sensors here.
-            //  */
-            // if (data[0])
-            //     hc_sr04_data.distance[trig] = hc_sr04_calculate_distance(data[0]->duration0);
-            // vRingbufferReturnItem(rb[i], (void *)item);
-            // else hc_sr04_data.distance[trig] = 0;
-
-            // if (data[1])
-            //     hc_sr04_data.distance[trig + NUMBER_OF_TRIG_PINS] = hc_sr04_calculate_distance(data[1]->duration0);
-            // else
-            //     hc_sr04_data.distance[trig + NUMBER_OF_TRIG_PINS] = 0;
-
             for (int echo = 0; echo < NUMBER_OF_ECHO_PINS; ++echo)
             {
                 size_t measurement_index = echo + trig * NUMBER_OF_ECHO_PINS;
@@ -369,20 +301,19 @@ TASK hc_sr04_measure()
                     distance = DISTANCE_MAX;
                 }
 
+                /**
+                 * @brief If measured distance is lower than min threshold,
+                 * it is probably a glitch and should be ignored.
+                 */
                 if (distance < DISTANCE_MIN)
                 {
                     distance = DISTANCE_MAX;
                 }
 
-                // ESP_LOGI(TAG, "Distance %d", distance);
-
-                // ESP_LOGI(TAG, "Distance %d", distance);
                 hc_sr04_data.distance[measurement_index] = distance;
             }
 
             // ESP_LOGI(TAG, "Sensor %d - distance %d", i, hc_sr04_data.distance[i]);
-
-            vTaskDelay(MEASUREMENT_DELAY_TIME);
         }
         // ESP_LOGI(TAG, "Sending data to queue");
         // ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
@@ -392,10 +323,7 @@ TASK hc_sr04_measure()
         // ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
 
         // ESP_LOGI(TAG, "Queue address %p", hc_sr04_queue_data);
-        ble_send_from_task(TASK_ID_HC_SR04, &hc_sr04_data);
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);
-
-        // app_manager_algo_task_notify(TASK_FLAG_HC_SR04);
-        // app_manager_ble_task_notify(TASK_FLAG_HC_SR04);
+        ble_send_from_task(TASK_ID_HC_SR04, &hc_sr04_data);
     }
 }
