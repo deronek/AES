@@ -24,6 +24,7 @@ extern float algo_goal_heading;
 // function declarations
 void goal_heading_init();
 void goal_heading_calculate();
+float goal_heading_angle_to_goal();
 float goal_heading_distance_to_goal();
 
 #endif

@@ -60,11 +60,16 @@ void goal_heading_init()
 
 void goal_heading_calculate()
 {
+    algo_goal_heading = goal_heading_angle_to_goal();
+    ESP_LOGI(TAG, "Desired heading: %.2f", RAD_TO_DEG * algo_goal_heading);
+}
+
+float goal_heading_angle_to_goal()
+{
     float a = xf - algo_position.x;
     float b = yf - algo_position.y;
 
-    algo_goal_heading = atan2f(a, b);
-    ESP_LOGI(TAG, "Desired heading: %.2f", RAD_TO_DEG * algo_goal_heading);
+    return atan2f(a, b);
 }
 
 float goal_heading_distance_to_goal()
