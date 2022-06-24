@@ -24,21 +24,34 @@ static const char *TAG = "algo-goal-heading";
 /**
  * @brief (xs, ys) - coordinates of the start point of the vehicle.
  */
-static float xs = 0.0;
-static float ys = 0.0;
+static float xs = 0.75;
+static float ys = 0;
 
 /**
  * @brief (xf, yf) - coordinates of the finish point.
  */
 static float xf = 3.96;
-static float yf = 2.0;
+static float yf = 3.66;
+
+// static float xf = 0.75;
+// static float yf = 50;
 
 /**
  * @brief (x_hat, y_hat) - length and with of the play area.
  */
+
+/**
+ * @brief From WIKAMP:
+ */
 #define INCH_TO_CM
-static float x_hat = 3.96;
-static float y_hat = 6.6;
+// static float x_hat = 3.96;
+// static float y_hat = 6.6;
+
+/**
+ * @brief Measured:
+ */
+static float x_hat = 3.05;
+static float y_hat = 6.1;
 
 // function definitions
 void goal_heading_init()

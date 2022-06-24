@@ -29,6 +29,9 @@
 #define RMT_TICK_10_US (80000000UL / RMT_CLK_DIV / 100000UL) /* RMT counter value for 10 us.(Source clock is APB clock) */ // 80
 #define ITEM_DURATION(d) ((d & 0x7fff) * 10 / RMT_TICK_10_US)
 
+#define DISTANCE_MAX (2000000)
+#define DISTANCE_MIN (2000)
+
 // structs
 typedef struct hc_sr04_pair_type_tag
 {
@@ -363,7 +366,12 @@ TASK hc_sr04_measure()
                 }
                 else
                 {
-                    distance = 2000000;
+                    distance = DISTANCE_MAX;
+                }
+
+                if (distance < DISTANCE_MIN)
+                {
+                    distance = DISTANCE_MAX;
                 }
 
                 // ESP_LOGI(TAG, "Distance %d", distance);
@@ -378,8 +386,8 @@ TASK hc_sr04_measure()
         }
         // ESP_LOGI(TAG, "Sending data to queue");
         // ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
-        // ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
-        //          hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
+        ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
+                 hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
 
         // ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
 

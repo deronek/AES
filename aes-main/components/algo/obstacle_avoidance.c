@@ -20,6 +20,7 @@
 #define DEG_TO_RAD (M_PI / 180.0)
 
 #define DISTANCE_SCALING_FACTOR_UNITY 10000
+#define DISTANCE_SAFE_THRESHOLD (500000)
 #define DANGER_LEVEL_DISTANCE_THRESHOLD 800000
 
 #define DANGER_LEVEL_SAFE_THRESHOLD (3.0)
@@ -78,6 +79,7 @@ float algo_obstacle_avoidance_angle;
 uint8_t algo_obstacle_avoidance_heading_sector;
 uint8_t algo_obstacle_avoidance_danger_level_in_heading;
 float algo_follow_wall_angle;
+bool algo_obstacle_avoidance_request_follow_wall;
 
 // local variables
 static const char *TAG = "algo-obstacle-avoidance";
@@ -97,6 +99,7 @@ static int calculate_sector_from_heading(float heading);
 static void check_left_sector(int sector_to_check, int *safe_sector);
 static void check_right_sector(int sector_to_check, int *safe_sector);
 void calculate_obstacle_avoidance_angle();
+static void calculate_most_dangerous_sector();
 
 // inline function definitions
 inline static bool is_correct_sector(int sector)
@@ -149,16 +152,23 @@ void obstacle_avoidance_calculate()
      * @brief Danger level defines how much corrective action
      * the robot has to take to avoid collision.
      */
-    calculate_danger_levels();
-    if (biggest_danger_level < DANGER_LEVEL_SAFE_THRESHOLD)
+    // calculate_danger_levels();
+    calculate_most_dangerous_sector();
+    if (algo_hc_sr04_data.distance[most_dangerous_sector] > DISTANCE_SAFE_THRESHOLD)
     {
         /**
          * @todo Do not avoid the obstacle, area is safe.
          */
-        algo_follow_wall_angle = INFINITY;
+        // algo_follow_wall_angle = INFINITY;
+        algo_follow_wall_angle = algo_goal_heading;
+        algo_obstacle_avoidance_angle = algo_goal_heading;
+        algo_obstacle_avoidance_request_follow_wall = false;
         ESP_LOGI(TAG, "Area is safe, driving to desired heading");
         return;
     }
+    ESP_LOGI(TAG, "Most dangerous sector: %d at distance %d",
+             most_dangerous_sector, algo_hc_sr04_data.distance[most_dangerous_sector]);
+    algo_obstacle_avoidance_request_follow_wall = true;
 
     /**
      * @brief Calculate obstacle avoidance angle to the nearest obstacle
@@ -207,6 +217,20 @@ void calculate_obstacle_avoidance_angle()
         algo_follow_wall_angle = ccw;
     }
     algo_obstacle_avoidance_angle = angle_obstacle_avoidance;
+}
+
+static void calculate_most_dangerous_sector()
+{
+    most_dangerous_sector = -1;
+    uint32_t lowest_distance = UINT32_MAX;
+    for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
+    {
+        if (algo_hc_sr04_data.distance[i] < lowest_distance)
+        {
+            lowest_distance = algo_hc_sr04_data.distance[i];
+            most_dangerous_sector = i;
+        }
+    }
 }
 
 void check_left_sector(int sector_to_check, int *safe_sector)

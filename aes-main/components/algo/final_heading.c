@@ -10,6 +10,7 @@ float algo_final_heading;
 final_heading_behaviour_state_type final_heading_behaviour_state = BEHAVIOUR_DRIVE_TO_GOAL;
 
 // local variables
+static const char *TAG = "algo-final-heading";
 float distance_to_goal;
 
 // function declarations
@@ -32,6 +33,7 @@ void final_heading_calculate()
      * @brief Run state machine transition, then calculate final heading output.
      */
     final_heading_run_state();
+    ESP_LOGI(TAG, "State: %d", final_heading_behaviour_state);
     final_heading_output();
 }
 
@@ -43,7 +45,7 @@ void final_heading_run_state()
         /**
          * @brief Obstacle is nearby, transition into following the wall.
          */
-        if (algo_follow_wall_angle != INFINITY)
+        if (algo_obstacle_avoidance_request_follow_wall)
         {
             final_heading_behaviour_state = BEHAVIOUR_FOLLOW_THE_WALL;
             distance_to_goal = goal_heading_distance_to_goal();

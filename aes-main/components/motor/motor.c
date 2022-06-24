@@ -17,6 +17,15 @@
 #define SPEED_MIN (8.0F)
 #define SPEED_MAX (22.0F)
 
+// #define SPEED_MIN_L (SPEED_MIN * MOTOR_CORRECTION_L)
+// #define SPEED_MAX
+
+/**
+ * @todo Maybe correct speeds on motors each.
+ * Vehicle is driving a little bit to the left -
+ * correct that by giving left motor a little more speed.
+ */
+
 #define PWM_FREQUENCY 5000U
 
 #define RAD_TO_DEG (180.0 / M_PI)
@@ -54,9 +63,11 @@
  * coefficients of the motor PID regulator.
  * @todo Adjust these values.
  */
-#define kP (20.0)
-#define kD (1.0)
-#define kI (0.5)
+#define kP (8.0)
+#define kD (0.1)
+// #define kI (2.0)
+// #define kI (1.5)
+#define kI (0.0)
 
 // structs
 /**
@@ -162,12 +173,13 @@ void motor_tick(motor_control_input_data_type input_data)
     error_hat += error;
     float omega = kP * error + (kD / ALGO_DELTA_TIME) * error_dot + (kI * ALGO_DELTA_TIME) * error_hat;
 
+    ESP_LOGI(TAG, "error: %.2f, error_hat: %.2f, error_dot: %.2f", error, error_hat, error_dot);
     /**
      * @todo Line below makes sure this will not go over [-pi, pi].
      * This may not be neccessary.
      */
     // omega = ANGLE_SAFEGUARD(error);
-    omega = error;
+    // omega = error;
     old_error = error;
 
     ESP_LOGI(TAG, "Omega: %.2f", omega * RAD_TO_DEG);

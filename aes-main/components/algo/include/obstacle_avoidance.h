@@ -15,6 +15,7 @@ extern float algo_obstacle_avoidance_angle;
 extern uint8_t algo_obstacle_avoidance_heading_sector;
 extern uint8_t algo_obstacle_avoidance_danger_level_in_heading;
 extern float algo_follow_wall_angle;
+extern bool algo_obstacle_avoidance_request_follow_wall;
 
 // function declarations;
 void obstacle_avoidance_init();

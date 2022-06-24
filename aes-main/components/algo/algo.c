@@ -9,6 +9,7 @@
 #include "obstacle_avoidance.h"
 #include "photo_encoder.h"
 #include "motor.h"
+#include "task_utils.h"
 #include "hall.h"
 
 // constants
@@ -233,11 +234,11 @@ void algo_ble_send()
 
     ble_data.current_heading = algo_current_heading * RAD_TO_DEG;
     ble_data.pos_x = algo_position.x;
-    ble_data.pos_y = algo_position.x;
+    ble_data.pos_y = algo_position.y;
     ble_data.behaviour_state = final_heading_behaviour_state;
-    ble_data.goal_heading = algo_goal_heading;
-    ble_data.follow_wall_heading = algo_follow_wall_angle;
-    ble_data.final_heading = algo_final_heading;
+    ble_data.goal_heading = algo_goal_heading * RAD_TO_DEG;
+    ble_data.follow_wall_heading = algo_follow_wall_angle * RAD_TO_DEG;
+    ble_data.final_heading = algo_final_heading * RAD_TO_DEG;
 
     ble_send_from_task(TASK_ID_ALGO, &ble_data);
 }

@@ -23,7 +23,7 @@ typedef struct accel_velocity_type_tag
  * Values closer to 0 favor photo encoders measurements.
  * Values closer to 1 favor accelerometer measurements.
  */
-#define POSITION_COMP_FILTER_ALPHA (0.05)
+#define POSITION_COMP_FILTER_ALPHA (0.00)
 #define G_UNIT_TO_M_S2 (9.80665)
 #define TIME_DELTA_ACCEL (1.0 / 200)
 

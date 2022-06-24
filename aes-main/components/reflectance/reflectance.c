@@ -81,11 +81,11 @@ TASK reflectance_main()
         //          timer_measurements[2],
         //          timer_measurements[3]);
 
-        ESP_LOGI(TAG, "%d %d %d %d",
-                 sensor_voltage[0],
-                 sensor_voltage[1],
-                 sensor_voltage[2],
-                 sensor_voltage[3]);
+        // ESP_LOGI(TAG, "%d %d %d %d",
+        //          sensor_voltage[0],
+        //          sensor_voltage[1],
+        //          sensor_voltage[2],
+        //          sensor_voltage[3]);
 
         reflectance_output();
 
