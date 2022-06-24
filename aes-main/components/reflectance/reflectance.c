@@ -4,20 +4,22 @@
 
 // constants
 
-#define NUMBER_OF_REFLECTANCE_SENSORS (4)
+#define NUMBER_OF_REFLECTANCE_SENSORS (2)
 
 #define REFLECTANCE_SENSOR_MEASUREMENT_PREWAIT (pdMS_TO_TICKS(5))
 #define REFLECTANCE_SENSOR_MEASUREMENT_WAIT (pdMS_TO_TICKS(50))
 
+#define TASK_TICK_PERIOD (pdMS_TO_TICKS(100))
+
 /**
  * @todo Fill in the value.
  */
-#define REFLECTANCE_THRESHOLD (0)
+#define REFLECTANCE_THRESHOLD (500)
 
 // structs
 
 // global variables
-reflectance_request_avoidance_data_type reflectance_request_avoidance_data;
+reflectance_request_avoidance_type reflectance_request_avoidance;
 
 // local variables
 static const char *TAG = "reflectance";
@@ -39,11 +41,6 @@ static adc_channel_t reflectance_adc_channels[NUMBER_OF_REFLECTANCE_SENSORS] = {
     ADC_CHANNEL_3,
     ADC_CHANNEL_6,
     ADC_CHANNEL_7};
-static uint8_t timer_measurement_indexes[NUMBER_OF_REFLECTANCE_SENSORS] = {0, 1, 2, 3};
-static int64_t measurement_start_time;
-
-static bool front_right_warning = false;
-static bool front_left_warning = false;
 
 // inline function declarations
 
@@ -82,7 +79,7 @@ TASK reflectance_main()
 
         reflectance_output();
 
-        vTaskDelay(1000);
+        vTaskDelay(TASK_TICK_PERIOD);
     }
 }
 
@@ -93,57 +90,18 @@ void reflectance_measure()
      */
     adc_power_acquire();
 
-    // for (int i = 0; i < NUMBER_OF_REFLECTANCE_SENSORS; ++i)
-    // {
-    //     timer_measurements[i] = 0;
-
-    //     gpio_isr_handler_add(reflectance_gpios[i], reflectance_isr, &timer_measurement_indexes[i]);
-    //     gpio_set_pull_mode(reflectance_gpios[i], GPIO_PULLUP_ONLY);
-    //     // gpio_set_direction(reflectance_gpios[i], GPIO_MODE_OUTPUT);
-    //     // gpio_set_level(reflectance_gpios[i], 1);
-    // }
-
-    // vTaskDelay(pdMS_TO_TICKS(REFLECTANCE_SENSOR_MEASUREMENT_PREWAIT));
-
-    // measurement_start_time = esp_timer_get_time();
-    // for (int i = 0; i < NUMBER_OF_REFLECTANCE_SENSORS; ++i)
-    // {
-    //     gpio_set_pull_mode(reflectance_gpios[i], GPIO_PULLDOWN_ONLY);
-    //     // gpio_set_direction(reflectance_gpios[i], GPIO_MODE_INPUT);
-    // }
-
-    // vTaskDelay(pdMS_TO_TICKS(REFLECTANCE_SENSOR_MEASUREMENT_WAIT));
-
-    // for (int i = 0; i < NUMBER_OF_REFLECTANCE_SENSORS; ++i)
-    // {
-    //     timer_measurements[i] = esp_timer_get_time() - timer_measurements[i];
-    //     /**
-    //      * @brief Disable GPIO interrupts to make sure they will not trigger
-    //      * when waiting for the next measurement.
-    //      */
-    //     gpio_isr_handler_remove(reflectance_gpios[i]);
-    // }
-    // // ESP_LOGI(TAG, "%lli us", timer_measurements[0]);
-    // for (int i = 0; i < NUMBER_OF_REFLECTANCE_SENSORS; ++i)
-    // {
-    //     if (timer_measurements[i] > REFLECTANCE_THRESHOLD)
-    //     {
-    //         sensor_active[i] = true;
-    //     }
-    //     else
-    //     {
-    //         sensor_active[i] = false;
-    //     }
-    // }
-
-    // for (int i = 0; i < NUMBER_OF_REFLECTANCE_SENSORS; ++i)
-    // {
-    //     sensor_active[i] = gpio_get_level(reflectance_gpios[i]);
-    // }
-
     for (int i = 0; i < NUMBER_OF_REFLECTANCE_SENSORS; ++i)
     {
         sensor_voltage[i] = adc1_get_raw(reflectance_adc_channels[i]);
+
+        if (sensor_voltage[i] < REFLECTANCE_THRESHOLD)
+        {
+            sensor_active[i] = true;
+        }
+        else
+        {
+            sensor_active[i] = false;
+        }
     }
 
     /**
@@ -152,42 +110,18 @@ void reflectance_measure()
     adc_power_release();
 }
 
+/**
+ * @brief Avoidance request is set here and will be cleared in algo.
+ */
 void reflectance_output()
 {
     if (sensor_active[0])
     {
-        front_left_warning = true;
+        reflectance_request_avoidance.left = true;
     }
+
     if (sensor_active[1])
     {
-        front_right_warning = true;
-    }
-
-    if (sensor_active[2] && front_left_warning)
-    {
-        /**
-         * @brief Detected line crossing on the left of the vehicle.
-         * This flag will be cleared in algo after receiving it.
-         */
-        reflectance_request_avoidance_data.left = REQUEST_AVOIDANCE;
-
-        /**
-         * @brief Clear front_left_warning flag.
-         */
-        front_left_warning = false;
-    }
-
-    if (sensor_active[3] && front_right_warning)
-    {
-        /**
-         * @brief Detected line crossing on the right of the vehicle.
-         * This flag will be cleared in algo after receiving it.
-         */
-        reflectance_request_avoidance_data.right = REQUEST_AVOIDANCE;
-
-        /**
-         * @brief Clear front_right_warning flag.
-         */
-        front_right_warning = false;
+        reflectance_request_avoidance.right = true;
     }
 }

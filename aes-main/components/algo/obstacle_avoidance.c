@@ -230,6 +230,16 @@ obstacle_avoidance_state_type calculate_follow_wall_behaviour()
     }
 }
 
+void obstacle_avoidance_force_cw()
+{
+    algo_obstacle_avoidance_state = OBSTACLE_AVOIDANCE_CLOCKWISE;
+}
+
+void obstacle_avoidance_force_ccw()
+{
+    algo_obstacle_avoidance_state = OBSTACLE_AVOIDANCE_COUNTERCLOCKWISE;
+}
+
 bool should_enter_follow_wall_behaviour()
 {
     return (most_dangerous_sector != -1);
