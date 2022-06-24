@@ -2,6 +2,7 @@
 
 #include "esp_attr.h"
 #include "driver/gpio.h"
+#include "driver/adc.h"
 
 #include <stdlib.h>
 

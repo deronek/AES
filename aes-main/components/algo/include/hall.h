@@ -10,7 +10,7 @@ extern bool algo_hall_detected;
 
 // function declarations
 void hall_init();
-void hall_enable_isr();
-void hall_disable_isr();
+void hall_measure();
+void hall_reset();
 
 #endif

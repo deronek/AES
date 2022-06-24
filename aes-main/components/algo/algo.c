@@ -61,7 +61,6 @@ static void algo_cleanup();
 // function definitions
 void algo_init()
 {
-    // hall_init();
     /**
      * @todo Initialize all algo data structures
      */
