@@ -17,8 +17,14 @@
 #define SPEED_MIN (8.0F)
 #define SPEED_MAX (22.0F)
 
-// #define SPEED_MIN_L (SPEED_MIN * MOTOR_CORRECTION_L)
-// #define SPEED_MAX
+#define MOTOR_CORRECTION_L (1.0)
+#define MOTOR_CORRECTION_R (0.95)
+
+#define SPEED_MIN_L (SPEED_MIN * MOTOR_CORRECTION_L)
+#define SPEED_MIN_R (SPEED_MIN * MOTOR_CORRECTION_R)
+
+#define SPEED_MAX_L (SPEED_MAX * MOTOR_CORRECTION_L)
+#define SPEED_MAX_R (SPEED_MAX * MOTOR_CORRECTION_R)
 
 /**
  * @todo Maybe correct speeds on motors each.
@@ -63,11 +69,17 @@
  * coefficients of the motor PID regulator.
  * @todo Adjust these values.
  */
-#define kP (8.0)
-#define kD (0.1)
+#define kP (2.0)
+#define kD (1.0)
 // #define kI (2.0)
 // #define kI (1.5)
-#define kI (0.0)
+#define kI (0.2)
+
+/**
+ * @brief Derivative term implemented as IIR high-pass filter.
+ * Alpha value adjustable below.
+ */
+#define ERROR_DOT_ALPHA (0.5)
 
 // structs
 /**
@@ -97,8 +109,9 @@ static motor_control_output_data_type motor_control_output_data;
  * (since we start from heading 0 degrees).
  * This will result in error_dot ≈ 0 in first iteration.
  */
-static float old_error = FINISH_HEADING;
-static float error_hat = 0;
+static float old_error = 0.0;
+static float old_error_dot = 0.0;
+static float error_hat = 0.0;
 
 // local function declarations
 static float motor_calculate_pwm1(float omega);
@@ -169,8 +182,10 @@ void motor_tick(motor_control_input_data_type input_data)
      */
     error = ANGLE_SAFEGUARD(error);
 
-    error_dot = error - old_error;
+    // error_dot = error - old_error;
+    error_dot = ERROR_DOT_ALPHA * ((error - old_error) + old_error_dot);
     error_hat += error;
+
     float omega = kP * error + (kD / ALGO_DELTA_TIME) * error_dot + (kI * ALGO_DELTA_TIME) * error_hat;
 
     ESP_LOGI(TAG, "error: %.2f, error_hat: %.2f, error_dot: %.2f", error, error_hat, error_dot);
@@ -181,6 +196,7 @@ void motor_tick(motor_control_input_data_type input_data)
     // omega = ANGLE_SAFEGUARD(error);
     // omega = error;
     old_error = error;
+    old_error_dot = error_dot;
 
     ESP_LOGI(TAG, "Omega: %.2f", omega * RAD_TO_DEG);
 
@@ -199,51 +215,56 @@ void motor_tick(motor_control_input_data_type input_data)
 }
 
 /**
- * @brief Calculate PWM duty cycle for the left motor.
+ * @brief Calculate PWM duty cycle for the right motor.
  */
 static float motor_calculate_pwm1(float omega)
 {
     float pwm;
     if (omega <= (-M_PI / 2.0))
     {
-        pwm = SPEED_MIN;
+        pwm = SPEED_MIN_R;
     }
     else if ((omega > (-M_PI / 2.0) && (omega < 0)))
     {
-        pwm = ((SPEED_MAX - SPEED_MIN) / (M_PI / 2.0)) * omega + SPEED_MAX;
+        pwm = ((SPEED_MAX_R - SPEED_MIN_R) / (M_PI / 2.0)) * omega + SPEED_MAX_R;
     }
     else // omega >= 0
     {
-        pwm = SPEED_MAX;
+        pwm = SPEED_MAX_R;
     }
     return pwm;
 }
 
 /**
- * @brief Calculate PWM duty cycle for the right motor.
+ * @brief Calculate PWM duty cycle for the left motor.
  */
 static float motor_calculate_pwm2(float omega)
 {
     float pwm;
     if (omega <= 0)
     {
-        pwm = SPEED_MAX;
+        pwm = SPEED_MAX_L;
     }
     else if ((omega > 0) && (omega < (M_PI / 2.0)))
     {
-        pwm = (-(SPEED_MAX - SPEED_MIN) / (M_PI / 2.0)) * omega + SPEED_MAX;
+        pwm = (-(SPEED_MAX_L - SPEED_MIN_L) / (M_PI / 2.0)) * omega + SPEED_MAX_L;
     }
     else // omega >= (M_PI / 2)
     {
-        pwm = SPEED_MIN;
+        pwm = SPEED_MIN_L;
     }
     return pwm;
 }
 
-void motor_start()
+void motor_start(float goal_heading)
 {
     ESP_ERROR_CHECK(mcpwm_set_duty_type(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A, MCPWM_DUTY_MODE_0));
     ESP_ERROR_CHECK(mcpwm_set_duty_type(MCPWM_UNIT_1, MCPWM_TIMER_0, MCPWM_GEN_A, MCPWM_DUTY_MODE_0));
+
+    /**
+     * @brief We initialize old error so we do not have big error in first iteration.
+     */
+    old_error = goal_heading;
 }
 
 void motor_perform_control()
@@ -265,6 +286,7 @@ void motor_reset()
     motor_control_output_data.pwm1 = 0.0;
     motor_control_output_data.pwm2 = 0.0;
 
+    old_error = 0.0;
+    old_error_dot = 0.0;
     error_hat = 0.0;
-    old_error = FINISH_HEADING;
 }
