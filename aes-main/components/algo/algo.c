@@ -76,6 +76,7 @@ void algo_init()
     heading_imu_init();
     goal_heading_init();
     final_heading_init();
+    hall_init();
     motor_init();
 }
 
@@ -139,7 +140,7 @@ TASK algo_main()
     vTaskDelay(pdMS_TO_TICKS(50));
     algo_running = true;
     app_manager_notify_main(TASK_ID_ALGO, EVENT_STARTED_DRIVING);
-    motor_start();
+    motor_start(goal_heading_angle_to_goal());
 
     // get start time of this iteration
     TickType_t last_wake_time = xTaskGetTickCount();
@@ -223,6 +224,7 @@ void algo_cleanup()
     heading_imu_reset();
     final_heading_reset();
     obstacle_avoidance_reset();
+    hall_reset();
 
     algo_stop_requested = false;
 
@@ -246,6 +248,12 @@ void algo_ble_send()
 
 void algo_run()
 {
+    hall_measure();
+    if (algo_hall_detected)
+    {
+        // algo_stop_requested = true;
+    }
+
     heading_imu_calculate();
     goal_heading_calculate();
     obstacle_avoidance_calculate();

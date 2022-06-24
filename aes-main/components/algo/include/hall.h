@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 // global variables
-extern bool detected;
+extern bool algo_hall_detected;
 
 // function declarations
 void hall_init();
