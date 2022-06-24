@@ -60,6 +60,8 @@ class AESController:
 
     def __init__(self):
         self.current_heading = 0.0
+        self.pos_x = 0.0
+        self.pos_y = 0.0
         self.behaviour = None
         self.goal_heading = None
         self.follow_wall_heading = None
@@ -93,6 +95,9 @@ class AESController:
             self.behaviour = algo.behaviour
             self.goal_heading = algo.goal_heading
             self.follow_wall_heading = algo.follow_wall_heading
+            self.pos_x = algo.pos_x
+            self.pos_y = algo.pos_y
+            print(self.pos_x, self.pos_y)
         else:
             self.goal_heading = None
             self.follow_wall_heading = None

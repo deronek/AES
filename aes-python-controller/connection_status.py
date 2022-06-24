@@ -3,7 +3,7 @@ from enum import auto, Enum
 
 import pygame
 
-from constants import GREEN, RED, ASSETS_DIR
+from constants import GREEN, RED, ASSETS_DIR, BLACK
 
 SIZE = (800, 100)
 FONT = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 80)
@@ -18,7 +18,7 @@ FONT = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 80)
 
 
 def draw_connection_status(surface: pygame.Surface, connected: bool):
-
+    surface.fill(BLACK)
     if connected:
         status = FONT.render("CONNECTED", False, GREEN)
     else:
