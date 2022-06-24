@@ -48,18 +48,11 @@ static bool front_left_warning = false;
 // inline function declarations
 
 // function definitions
-static void IRAM_ATTR reflectance_isr(void *arg);
 static void reflectance_measure();
 static void reflectance_arbitrate_state();
 static void reflectance_output();
 
 // function declarations
-static void IRAM_ATTR reflectance_isr(void *arg)
-{
-    uint8_t index = *((uint8_t *)arg);
-    timer_measurements[index] = esp_timer_get_time();
-    gpio_isr_handler_remove(reflectance_gpios[index]);
-}
 
 void reflectance_init()
 {
