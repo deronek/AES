@@ -12,7 +12,7 @@ typedef enum final_heading_behaviour_state_type_tag
 
 // global variables
 extern float algo_final_heading;
-extern final_heading_behaviour_state_type final_heading_behaviour_state;
+extern final_heading_behaviour_state_type algo_final_heading_behaviour_state;
 
 // function declarations
 void final_heading_init();
