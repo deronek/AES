@@ -257,6 +257,11 @@ bool should_exit_follow_wall_behaviour()
 void calculate_obstacle_avoidance_angle()
 {
     angle_to_obstacle = algo_current_heading + hc_sr04_sensor_regions[most_dangerous_sector];
+
+    /**
+     * @todo Not sure if we need this angle safeguard below.
+     * Is there some scenario that this is needed/not needed?
+     */
     algo_obstacle_avoidance_angle = ANGLE_SAFEGUARD(angle_to_obstacle + M_PI);
 }
 
@@ -289,10 +294,21 @@ void calculate_most_dangerous_sector()
         /**
          * @brief This is the first iteration of detecting this sector as most dangerous.
          * Skip this, consider sector not dangerous.
-         * If it still will be dangerous in the next array, then we consider it dangerous.
+         * If it still will be dangerous in the next iteration, then we consider it dangerous.
          * This will help one-off measurement glitches from the sensors.
          */
         most_dangerous_sector = -1;
+    }
+
+    if ((most_dangerous_sector == -1) && (last_most_dangerous_sector != -1))
+    {
+        /**
+         * @brief We found this sector dangerous last time, now area is safe.
+         * Keep previous value for this iteration only.
+         * If area will still be safe in the next iteration, then we consider it safe.
+         * This will help one-off measurement glitches from the sensors.
+         */
+        most_dangerous_sector = last_most_dangerous_sector;
     }
 }
 
