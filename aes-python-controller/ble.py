@@ -78,6 +78,7 @@ class Algo(LockedData):
         behaviour: BehaviourState
         goal_heading: float
         follow_wall_heading: float
+        avoid_obstacle_angle: float
 
         def __init__(self, data: list):
             # TODO: data should be bytes in LockedData, not list
@@ -88,6 +89,7 @@ class Algo(LockedData):
             self.behaviour = BehaviourState(int.from_bytes(bytes(data[12:16]), byteorder='little'))
             self.goal_heading = struct.unpack('f', bytes(data[16:20]))[0]
             self.follow_wall_heading = struct.unpack('f', bytes(data[20:24]))[0]
+            self.avoid_obstacle_angle = struct.unpack('f', bytes(data[24:28]))[0]
 
     def __init__(self):
         super().__init__()
@@ -250,7 +252,7 @@ class BLE:
                 print(f"Exception in BLE.main(): {str(e)}")
                 # try again
                 await self.client.disconnect()
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
 
     async def ble_tx(self):
         while True:

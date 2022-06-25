@@ -65,6 +65,7 @@ class AESController:
         self.behaviour = None
         self.goal_heading = None
         self.follow_wall_heading = None
+        self.avoid_obstacle_angle = None
 
         self.ble = BLE()
 
@@ -95,12 +96,14 @@ class AESController:
             self.behaviour = algo.behaviour
             self.goal_heading = algo.goal_heading
             self.follow_wall_heading = algo.follow_wall_heading
+            self.avoid_obstacle_angle = algo.avoid_obstacle_angle
             self.pos_x = algo.pos_x
             self.pos_y = algo.pos_y
             print(self.pos_x, self.pos_y)
         else:
             self.goal_heading = None
             self.follow_wall_heading = None
+            self.avoid_obstacle_angle = None
         if self.ble.hc_sr04.available:
             hc_sr04 = await self.ble.hc_sr04.get_data()
             distance = hc_sr04.distance
@@ -113,7 +116,8 @@ class AESController:
 
         self.window.blit(draw_heading(current_heading=self.current_heading,
                                       goal_heading=self.goal_heading,
-                                      follow_wall_angle=self.follow_wall_heading),
+                                      follow_wall_angle=self.follow_wall_heading,
+                                      avoid_obstacle_angle=self.avoid_obstacle_angle),
                          (415, 680))
         self.window.blit(draw_radar(distance), (40, 160))
         draw_connection_status(self.window.subsurface(CONNECTION_STATUS_RECT), self.ble.client.is_connected)
