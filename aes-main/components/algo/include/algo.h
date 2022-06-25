@@ -38,6 +38,7 @@ typedef struct algo_ble_data_type_tag
     final_heading_behaviour_state_type behaviour_state;
     float goal_heading;
     float follow_wall_heading;
+    float avoid_obstacle_heading;
     float final_heading;
 } algo_ble_data_type;
 

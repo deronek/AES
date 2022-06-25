@@ -242,6 +242,7 @@ void algo_ble_send()
     ble_data.behaviour_state = algo_final_heading_behaviour_state;
     ble_data.goal_heading = algo_goal_heading * RAD_TO_DEG;
     ble_data.follow_wall_heading = algo_follow_wall_angle * RAD_TO_DEG;
+    ble_data.avoid_obstacle_heading = algo_avoid_obstacle_angle * RAD_TO_DEG;
     ble_data.final_heading = algo_final_heading * RAD_TO_DEG;
 
     ble_send_from_task(TASK_ID_ALGO, &ble_data);

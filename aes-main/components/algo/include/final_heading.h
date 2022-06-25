@@ -7,7 +7,8 @@
 typedef enum final_heading_behaviour_state_type_tag
 {
     BEHAVIOUR_DRIVE_TO_GOAL,
-    BEHAVIOUR_FOLLOW_THE_WALL
+    BEHAVIOUR_FOLLOW_THE_WALL,
+    BEHAVIOUR_AVOID_OBSTACLE
 } final_heading_behaviour_state_type;
 
 // global variables

@@ -23,18 +23,22 @@ static const char *TAG = "algo-goal-heading";
 
 /**
  * @brief (xs, ys) - coordinates of the start point of the vehicle.
+ *
+ * ---------------------------------------
+ * @todo Pass start position to position module.
+ * ---------------------------------------
  */
-static float xs = 0.75;
+static float xs = 0.0;
 static float ys = 0;
 
 /**
  * @brief (xf, yf) - coordinates of the finish point.
  */
-static float xf = 3.96;
-static float yf = 3.66;
+// static float xf = 3.96;
+// static float yf = 3.66;
 
-// static float xf = 0.75;
-// static float yf = 50;
+static float xf = 0.0;
+static float yf = 3.05;
 
 /**
  * @brief (x_hat, y_hat) - length and with of the play area.
@@ -61,7 +65,6 @@ void goal_heading_init()
 void goal_heading_calculate()
 {
     algo_goal_heading = goal_heading_angle_to_goal();
-    algo_goal_heading = 0.0;
     ESP_LOGI(TAG, "Desired heading: %.2f", RAD_TO_DEG * algo_goal_heading);
 }
 

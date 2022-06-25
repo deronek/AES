@@ -77,14 +77,14 @@ uint8_t hc_sr04_echo_pins[NUMBER_OF_ECHO_PINS] = {
  * Units are micrometers.
  */
 uint32_t hc_sr04_distance_offset[NUMBER_OF_HC_SR04_SENSORS] = {
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0};
+    45000,
+    45000,
+    10000,
+    10000,
+    10000,
+    10000,
+    45000,
+    45000};
 
 /**
  * @brief Mapping of sensor indexes (starting from the left).
@@ -295,7 +295,7 @@ TASK hc_sr04_measure()
                 volatile uint32_t distance;
                 if (rx_durations[echo])
                 {
-                    distance = hc_sr04_calculate_distance(rx_durations[echo]) - hc_sr04_distance_offset[measurement_index];
+                    distance = hc_sr04_calculate_distance(rx_durations[echo]) + hc_sr04_distance_offset[measurement_index];
                 }
                 else
                 {
@@ -318,8 +318,8 @@ TASK hc_sr04_measure()
         }
         // ESP_LOGI(TAG, "Sending data to queue");
         // ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
-        ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
-                 hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
+        // ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
+        //          hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
 
         // ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
 

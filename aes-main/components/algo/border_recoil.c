@@ -66,13 +66,13 @@ void border_recoil_output()
 {
     switch (algo_obstacle_avoidance_state)
     {
-    case OBSTACLE_AVOIDANCE_CLOCKWISE:
+    case OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE:
         if (border_recoil_state == BORDER_RECOIL_DIRECTION_LEFT)
         {
             obstacle_avoidance_force_ccw();
         }
         break;
-    case OBSTACLE_AVOIDANCE_COUNTERCLOCKWISE:
+    case OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE:
         if (border_recoil_state == BORDER_RECOIL_DIRECTION_RIGHT)
         {
             obstacle_avoidance_force_cw();

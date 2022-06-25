@@ -8,9 +8,10 @@
 // enums
 typedef enum obstacle_avoidance_state_type_tag
 {
-    OBSTACLE_AVOIDANCE_NONE,
-    OBSTACLE_AVOIDANCE_CLOCKWISE,
-    OBSTACLE_AVOIDANCE_COUNTERCLOCKWISE
+    OA_BEHAVIOUR_NONE,
+    OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE,
+    OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE,
+    OA_BEHAVIOUR_AVOID_OBSTACLE
 } obstacle_avoidance_state_type;
 
 // constants
@@ -19,12 +20,12 @@ typedef enum obstacle_avoidance_state_type_tag
 #define DANGER_LEVEL_MIN 0
 
 // global variables
-extern float algo_obstacle_avoidance_angle;
 extern uint8_t algo_obstacle_avoidance_heading_sector;
 extern uint8_t algo_obstacle_avoidance_danger_level_in_heading;
 extern float algo_follow_wall_angle;
 extern bool algo_obstacle_avoidance_request_follow_wall;
 extern obstacle_avoidance_state_type algo_obstacle_avoidance_state;
+extern float algo_avoid_obstacle_angle;
 
 // function declarations;
 void obstacle_avoidance_init();

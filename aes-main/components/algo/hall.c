@@ -40,6 +40,7 @@ void hall_measure()
 {
     int value;
     adc2_get_raw(ADC2_CHANNEL_3, ADC_WIDTH_BIT_12, &value);
+    // ESP_LOGI(TAG, "Hall: %d", );
 
     if (value > HALL_THRESHOLD)
     {

@@ -28,15 +28,18 @@ void final_heading_calculate()
 {
     switch (algo_obstacle_avoidance_state)
     {
-    case OBSTACLE_AVOIDANCE_NONE:
+    case OA_BEHAVIOUR_NONE:
         algo_final_heading_behaviour_state = BEHAVIOUR_DRIVE_TO_GOAL;
         algo_final_heading = algo_goal_heading;
         break;
-    case OBSTACLE_AVOIDANCE_CLOCKWISE:
-    case OBSTACLE_AVOIDANCE_COUNTERCLOCKWISE:
+    case OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE:
+    case OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE:
         algo_final_heading_behaviour_state = BEHAVIOUR_FOLLOW_THE_WALL;
         algo_final_heading = algo_follow_wall_angle;
         break;
+    case OA_BEHAVIOUR_AVOID_OBSTACLE:
+        algo_final_heading_behaviour_state = BEHAVIOUR_AVOID_OBSTACLE;
+        algo_final_heading = algo_avoid_obstacle_angle;
     }
 }
 
