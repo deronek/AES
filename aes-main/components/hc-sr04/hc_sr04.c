@@ -198,6 +198,7 @@ void hc_sr04_init()
 TASK hc_sr04_measure()
 {
     size_t rx_size = 0;
+    hc_sr04_data.measurement_number = 1;
 
     for (;;)
     {
@@ -325,5 +326,7 @@ TASK hc_sr04_measure()
         // ESP_LOGI(TAG, "Queue address %p", hc_sr04_queue_data);
         xQueueOverwrite(hc_sr04_queue_data, &hc_sr04_data);
         ble_send_from_task(TASK_ID_HC_SR04, &hc_sr04_data);
+
+        hc_sr04_data.measurement_number++;
     }
 }

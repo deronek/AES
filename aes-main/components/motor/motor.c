@@ -17,8 +17,8 @@
 #define SPEED_MIN (8.0F)
 #define SPEED_MAX (22.0F)
 
-#define MOTOR_CORRECTION_L (1.0)
-#define MOTOR_CORRECTION_R (0.95)
+#define MOTOR_CORRECTION_L (1.0F)
+#define MOTOR_CORRECTION_R (0.95F)
 
 #define SPEED_MIN_L (SPEED_MIN * MOTOR_CORRECTION_L)
 #define SPEED_MIN_R (SPEED_MIN * MOTOR_CORRECTION_R)
@@ -70,10 +70,12 @@
  * @todo Adjust these values.
  */
 #define kP (2.0)
-#define kD (1.0)
+// #define kD (1.0)
+#define kD (0.0)
 // #define kI (2.0)
 // #define kI (1.5)
-#define kI (0.2)
+// #define kI (0.2)
+#define kI (0.0)
 
 /**
  * @brief Derivative term implemented as IIR high-pass filter.
@@ -215,7 +217,7 @@ void motor_tick(motor_control_input_data_type input_data)
 }
 
 /**
- * @brief Calculate PWM duty cycle for the right motor.
+ * @brief Calculate PWM duty cycle for the left motor.
  */
 static float motor_calculate_pwm1(float omega)
 {
@@ -236,7 +238,7 @@ static float motor_calculate_pwm1(float omega)
 }
 
 /**
- * @brief Calculate PWM duty cycle for the left motor.
+ * @brief Calculate PWM duty cycle for the right motor.
  */
 static float motor_calculate_pwm2(float omega)
 {

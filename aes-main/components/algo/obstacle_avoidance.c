@@ -88,7 +88,12 @@ static const char *TAG = "algo-obstacle-avoidance";
 // float obstacle_avoidance_angles[NUMBER_OF_HC_SR04_SENSORS];
 // float danger_intensities[NUMBER_OF_HC_SR04_SENSORS];
 static int last_most_dangerous_sector = -1;
+static int most_dangerous_sector_measurement = -1;
 static int most_dangerous_sector = -1;
+/**
+ * @todo Fix type
+ */
+static uint32_t last_hc_sr04_measurement_number = 0;
 // float biggest_danger_level = -1;
 // float danger_levels[NUMBER_OF_HC_SR04_SENSORS];
 static float distance_to_goal;
@@ -148,7 +153,15 @@ void obstacle_avoidance_init()
 
 void obstacle_avoidance_calculate()
 {
-    calculate_most_dangerous_sector();
+    ESP_LOGI(TAG, "last_measurement: %d, now: %d",
+             last_hc_sr04_measurement_number,
+             algo_hc_sr04_data.measurement_number);
+    if (last_hc_sr04_measurement_number < algo_hc_sr04_data.measurement_number)
+    {
+        calculate_most_dangerous_sector();
+        last_hc_sr04_measurement_number = algo_hc_sr04_data.measurement_number;
+    }
+
     calculate_obstacle_avoidance_angle();
 
     /**
@@ -277,19 +290,20 @@ void calculate_follow_wall_ccw_angle()
 
 void calculate_most_dangerous_sector()
 {
-    last_most_dangerous_sector = most_dangerous_sector;
+    last_most_dangerous_sector = most_dangerous_sector_measurement;
     most_dangerous_sector = -1;
+    most_dangerous_sector_measurement = -1;
     uint32_t lowest_distance = UINT32_MAX;
     for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
     {
         if (algo_hc_sr04_data.distance[i] < lowest_distance)
         {
             lowest_distance = algo_hc_sr04_data.distance[i];
-            most_dangerous_sector = i;
+            most_dangerous_sector_measurement = i;
         }
     }
 
-    if ((most_dangerous_sector != -1) && (last_most_dangerous_sector != most_dangerous_sector))
+    if ((most_dangerous_sector_measurement != -1) && (last_most_dangerous_sector != most_dangerous_sector_measurement))
     {
         /**
          * @brief This is the first iteration of detecting this sector as most dangerous.
@@ -297,10 +311,11 @@ void calculate_most_dangerous_sector()
          * If it still will be dangerous in the next iteration, then we consider it dangerous.
          * This will help one-off measurement glitches from the sensors.
          */
+        ESP_LOGI(TAG, "Sector %d dangerous candidate", most_dangerous_sector_measurement);
         most_dangerous_sector = -1;
     }
 
-    if ((most_dangerous_sector == -1) && (last_most_dangerous_sector != -1))
+    else if ((most_dangerous_sector_measurement == -1) && (last_most_dangerous_sector != -1))
     {
         /**
          * @brief We found this sector dangerous last time, now area is safe.
@@ -308,7 +323,13 @@ void calculate_most_dangerous_sector()
          * If area will still be safe in the next iteration, then we consider it safe.
          * This will help one-off measurement glitches from the sensors.
          */
+        ESP_LOGI(TAG, "Sector safe request");
         most_dangerous_sector = last_most_dangerous_sector;
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Keeping sector state at %d", most_dangerous_sector_measurement);
+        most_dangerous_sector = most_dangerous_sector_measurement;
     }
 }
 
@@ -357,6 +378,7 @@ void calculate_most_dangerous_sector()
 void obstacle_avoidance_reset()
 {
     algo_obstacle_avoidance_state = OBSTACLE_AVOIDANCE_NONE;
+    last_hc_sr04_measurement_number = 0;
 }
 
 // void calculate_danger_intensities()

@@ -43,6 +43,7 @@ typedef struct hc_sr04_sensor_data_type_tag
 typedef struct hc_sr04_data_type_tag
 {
     uint32_t distance[NUMBER_OF_HC_SR04_SENSORS];
+    uint32_t measurement_number;
 } hc_sr04_data_type;
 // global variables
 

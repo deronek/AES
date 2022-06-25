@@ -61,6 +61,7 @@ void goal_heading_init()
 void goal_heading_calculate()
 {
     algo_goal_heading = goal_heading_angle_to_goal();
+    algo_goal_heading = 0.0;
     ESP_LOGI(TAG, "Desired heading: %.2f", RAD_TO_DEG * algo_goal_heading);
 }
 
