@@ -30,5 +30,7 @@ extern obstacle_avoidance_state_type algo_obstacle_avoidance_state;
 void obstacle_avoidance_init();
 void obstacle_avoidance_calculate();
 void obstacle_avoidance_reset();
+void obstacle_avoidance_force_cw();
+void obstacle_avoidance_force_ccw();
 
 #endif

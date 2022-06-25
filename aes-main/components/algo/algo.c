@@ -10,6 +10,7 @@
 #include "photo_encoder.h"
 #include "motor.h"
 #include "task_utils.h"
+#include "border_recoil.h"
 #include "hall.h"
 
 // constants
@@ -166,6 +167,7 @@ TASK algo_main()
         {
             break;
         }
+
         algo_ble_send();
         /**
          * @brief We want to run algo calculations at least with ALGO_FREQUENCY.
@@ -247,11 +249,13 @@ void algo_ble_send()
 
 void algo_run()
 {
-    hall_measure();
+    // hall_measure();
     if (algo_hall_detected)
     {
         // algo_stop_requested = true;
     }
+
+    // border_recoil_calculate();
 
     heading_imu_calculate();
     goal_heading_calculate();
