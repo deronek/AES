@@ -295,7 +295,7 @@ TASK hc_sr04_measure()
                 volatile uint32_t distance;
                 if (rx_durations[echo])
                 {
-                    distance = hc_sr04_calculate_distance(rx_durations[echo]) + hc_sr04_distance_offset[measurement_index];
+                    distance = hc_sr04_calculate_distance(rx_durations[echo]);
                 }
                 else
                 {
@@ -309,6 +309,18 @@ TASK hc_sr04_measure()
                 if (distance < DISTANCE_MIN)
                 {
                     distance = DISTANCE_MAX;
+                }
+
+                /**
+                 * @brief Correct sensor offset based on mount position.
+                 */
+                if (distance < hc_sr04_distance_offset[measurement_index])
+                {
+                    distance = 0;
+                }
+                else
+                {
+                    distance -= hc_sr04_distance_offset[measurement_index];
                 }
 
                 hc_sr04_data.distance[measurement_index] = distance;
