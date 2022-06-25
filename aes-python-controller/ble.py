@@ -162,12 +162,13 @@ class BLE:
     tx_queue: asyncio.Queue
     timestamp: int
 
-    def __init__(self):
+    def __init__(self, ui_reset_data_handle):
         self.hc_sr04 = HcSr04()
         self.algo = Algo()
         self.app_manager = AppManager()
-        self.heading = 0
         self.timestamp = 0
+
+        self.ui_reset_data_handle = ui_reset_data_handle
 
         logger = logging.getLogger(self.__class__.__name__)
         logging_handler = logging.FileHandler('ble.log')
@@ -179,6 +180,13 @@ class BLE:
 
         self.last_time = None
         self.times = []
+
+    def reset_data(self):
+        self.algo.available = False
+        self.app_manager.available = False
+        self.hc_sr04.available = False
+        self.timestamp = 0
+        self.ui_reset_data_handle()
 
     class BlePacket:
         id: SensorID
@@ -252,6 +260,7 @@ class BLE:
                 print(f"Exception in BLE.main(): {str(e)}")
                 # try again
                 await self.client.disconnect()
+                self.reset_data()
                 await asyncio.sleep(1)
 
     async def ble_tx(self):

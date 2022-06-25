@@ -1,4 +1,5 @@
 import random
+from typing import Optional
 
 import pygame
 
@@ -57,17 +58,19 @@ class AESController:
     window: pygame.Surface
 
     current_heading: float
+    current_heading: float
+    pos_x: float
+    pos_y: float
+    app_manager_state: Optional[AppManagerState]
+    behaviour: Optional[BehaviourState]
+    goal_heading: Optional[float]
+    follow_wall_heading: Optional[float]
+    avoid_obstacle_angle: Optional[float]
 
     def __init__(self):
-        self.current_heading = 0.0
-        self.pos_x = 0.0
-        self.pos_y = 0.0
-        self.behaviour = None
-        self.goal_heading = None
-        self.follow_wall_heading = None
-        self.avoid_obstacle_angle = None
+        self.reset_data()
 
-        self.ble = BLE()
+        self.ble = BLE(self.reset_data)
 
         pygame.init()
         self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN, display=0)
@@ -81,14 +84,19 @@ class AESController:
         self.app_manager_surface = self.window.subsurface(APP_MANAGER_RECT)
         self.behaviour_surface = self.window.subsurface(BEHAVIOUR_RECT)
 
-    async def draw_window(self):
-        # global angle1
-        # angle1 += 1
+    def reset_data(self):
+        self.current_heading = 0.0
+        self.pos_x = 0.0
+        self.pos_y = 0.0
+        self.behaviour = None
+        self.app_manager_state = None
+        self.goal_heading = None
+        self.follow_wall_heading = None
+        self.avoid_obstacle_angle = None
 
+    async def draw_window(self):
         self.handle_events()
         # WIN.fill(BLACK)
-        timestamp = 0
-        app_manager_state = AppManagerState.APP_MANAGER_INIT
 
         if self.ble.algo.available:
             algo = await self.ble.algo.get_data()
@@ -100,10 +108,10 @@ class AESController:
             self.pos_x = algo.pos_x
             self.pos_y = algo.pos_y
             print(self.pos_x, self.pos_y)
-        else:
-            self.goal_heading = None
-            self.follow_wall_heading = None
-            self.avoid_obstacle_angle = None
+        # else:
+        #     self.goal_heading = None
+        #     self.follow_wall_heading = None
+        #     self.avoid_obstacle_angle = None
         if self.ble.hc_sr04.available:
             hc_sr04 = await self.ble.hc_sr04.get_data()
             distance = hc_sr04.distance
@@ -111,7 +119,8 @@ class AESController:
         else:
             distance = []
 
-        app_manager_state = await self.ble.app_manager.get_data()
+        if self.ble.app_manager.available:
+            self.app_manager_state = await self.ble.app_manager.get_data()
         timestamp = self.ble.timestamp
 
         self.window.blit(draw_heading(current_heading=self.current_heading,
@@ -122,7 +131,7 @@ class AESController:
         self.window.blit(draw_radar(distance), (40, 160))
         draw_connection_status(self.window.subsurface(CONNECTION_STATUS_RECT), self.ble.client.is_connected)
         draw_timestamp(self.window.subsurface(TIMESTAMP_RECT), timestamp)
-        draw_app_manager(self.app_manager_surface, app_manager_state)
+        draw_app_manager(self.app_manager_surface, self.app_manager_state)
         draw_behaviour(self.behaviour_surface, self.behaviour)
         draw_title(self.window.subsurface(TITLE_RECT))
         self.buttons.draw()
