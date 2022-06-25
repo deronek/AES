@@ -8,6 +8,7 @@
 #define BORDER_RECOIL_COEFFICIENT_DEC_PER_TICK (0.05)
 
 // local variables
+static const char *TAG = "algo-border-recoil";
 border_recoil_state_type border_recoil_state;
 float border_recoil_coefficient;
 
