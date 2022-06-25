@@ -30,6 +30,7 @@ typedef struct motor_control_input_data_type_tag
 {
     float current_heading;
     float desired_heading;
+    bool request_critical_steering;
 } motor_control_input_data_type;
 
 // global variables

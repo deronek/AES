@@ -115,6 +115,9 @@ static float old_error = 0.0;
 static float old_error_dot = 0.0;
 static float error_hat = 0.0;
 
+static float motor_speed_min_l;
+static float motor_speed_min_r;
+
 // local function declarations
 static float motor_calculate_pwm1(float omega);
 static float motor_calculate_pwm2(float omega);
@@ -210,6 +213,21 @@ void motor_tick(motor_control_input_data_type input_data)
     // motor_control_output_data.pwm1 = (omega + 180.0) / 360.0;
     // motor_control_output_data.pwm1 = -(omega + 180.0) / 360.0;
 
+    /**
+     * @brief If requested critical steering, overwrite minimum speed with 0,
+     * which will result in more sharp turning.
+     */
+    if (input_data.request_critical_steering)
+    {
+        motor_speed_min_l = 0.0;
+        motor_speed_min_r = 0.0;
+    }
+    else
+    {
+        motor_speed_min_l = SPEED_MIN_L;
+        motor_speed_min_r = SPEED_MIN_R;
+    }
+
     motor_control_output_data.pwm1 = motor_calculate_pwm1(omega);
     motor_control_output_data.pwm2 = motor_calculate_pwm2(omega);
 
@@ -224,11 +242,11 @@ static float motor_calculate_pwm1(float omega)
     float pwm;
     if (omega <= (-M_PI / 2.0))
     {
-        pwm = SPEED_MIN_R;
+        pwm = motor_speed_min_r;
     }
     else if ((omega > (-M_PI / 2.0) && (omega < 0)))
     {
-        pwm = ((SPEED_MAX_R - SPEED_MIN_R) / (M_PI / 2.0)) * omega + SPEED_MAX_R;
+        pwm = ((SPEED_MAX_R - motor_speed_min_r) / (M_PI / 2.0)) * omega + SPEED_MAX_R;
     }
     else // omega >= 0
     {
@@ -249,11 +267,11 @@ static float motor_calculate_pwm2(float omega)
     }
     else if ((omega > 0) && (omega < (M_PI / 2.0)))
     {
-        pwm = (-(SPEED_MAX_L - SPEED_MIN_L) / (M_PI / 2.0)) * omega + SPEED_MAX_L;
+        pwm = (-(SPEED_MAX_L - motor_speed_min_l) / (M_PI / 2.0)) * omega + SPEED_MAX_L;
     }
     else // omega >= (M_PI / 2)
     {
-        pwm = SPEED_MIN_L;
+        pwm = motor_speed_min_l;
     }
     return pwm;
 }

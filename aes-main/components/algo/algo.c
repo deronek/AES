@@ -268,6 +268,7 @@ void algo_run()
     motor_control_input_data_type motor_control;
     motor_control.current_heading = algo_current_heading;
     motor_control.desired_heading = algo_final_heading;
+    motor_control.request_critical_steering = algo_obstacle_avoidance_request_critical_steering;
     // motor_control.desired_heading = algo_goal_heading;
 
     motor_tick(motor_control);

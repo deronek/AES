@@ -83,6 +83,7 @@ float algo_follow_wall_angle;
 float algo_avoid_obstacle_angle;
 // bool algo_obstacle_avoidance_request_follow_wall;
 obstacle_avoidance_state_type algo_obstacle_avoidance_state;
+bool algo_obstacle_avoidance_request_critical_steering;
 
 // local variables
 static const char *TAG = "algo-obstacle-avoidance";
@@ -217,6 +218,7 @@ void obstacle_avoidance_calculate()
     switch (algo_obstacle_avoidance_state)
     {
     case OA_BEHAVIOUR_NONE:
+        algo_obstacle_avoidance_request_critical_steering = false;
         ESP_LOGI(TAG, "No obstacle found, skipping obstacle avoidance");
         break;
     case OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE:
@@ -230,6 +232,7 @@ void obstacle_avoidance_calculate()
         algo_follow_wall_angle = follow_wall_cc_angle;
         distance_to_goal = goal_heading_distance_to_goal();
         follow_wall_ticks++;
+        algo_obstacle_avoidance_request_critical_steering = false;
         ESP_LOGI(TAG, "Avoiding obstacle at angle %.2f clockwise, heading to %.2f", angle_to_obstacle * RAD_TO_DEG, algo_follow_wall_angle * RAD_TO_DEG);
         break;
     case OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE:
@@ -243,6 +246,7 @@ void obstacle_avoidance_calculate()
         algo_follow_wall_angle = follow_wall_ccw_angle;
         distance_to_goal = goal_heading_distance_to_goal();
         follow_wall_ticks++;
+        algo_obstacle_avoidance_request_critical_steering = false;
         ESP_LOGI(TAG, "Avoiding obstacle at angle %.2f counterclockwise, heading to %.2f", angle_to_obstacle * RAD_TO_DEG, algo_follow_wall_angle * RAD_TO_DEG);
         break;
     case OA_BEHAVIOUR_AVOID_OBSTACLE:
@@ -260,6 +264,7 @@ void obstacle_avoidance_calculate()
         }
         angle_sum /= angle_sum_number;
         algo_avoid_obstacle_angle = get_avoidance_angle_from_angle(angle_sum_number);
+        algo_obstacle_avoidance_request_critical_steering = true;
     }
     }
 }
