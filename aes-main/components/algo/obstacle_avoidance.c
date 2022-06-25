@@ -211,6 +211,7 @@ void obstacle_avoidance_calculate()
             obstacle_avoidance_state_type new_state = calculate_follow_wall_behaviour();
             algo_obstacle_avoidance_state = new_state;
             switched_to_follow_wall = true;
+            follow_wall_ticks = 0;
             algo_avoid_obstacle_angle = INFINITY;
         }
     }
