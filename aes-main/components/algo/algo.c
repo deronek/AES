@@ -250,13 +250,14 @@ void algo_ble_send()
 
 void algo_run()
 {
-    // hall_measure();
+    hall_measure();
     if (algo_hall_detected)
     {
-        // algo_stop_requested = true;
+        algo_stop_requested = true;
+        return;
     }
 
-    // border_recoil_calculate();
+    border_recoil_calculate();
 
     heading_imu_calculate();
     goal_heading_calculate();

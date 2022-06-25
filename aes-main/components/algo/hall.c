@@ -27,20 +27,14 @@ bool algo_hall_detected = false;
 
 void hall_init()
 {
-    gpio_reset_pin(HALL_GPIO_PIN);
-    gpio_set_direction(HALL_GPIO_PIN, GPIO_MODE_INPUT);
-
-    /**
-     * @todo Tweak attenuation below.
-     */
     adc2_config_channel_atten(ADC2_CHANNEL_3, ADC_ATTEN_DB_0);
+    gpio_set_pull_mode(HALL_GPIO_PIN, GPIO_PULLUP_ONLY);
 }
 
 void hall_measure()
 {
     int value;
     adc2_get_raw(ADC2_CHANNEL_3, ADC_WIDTH_BIT_12, &value);
-    // ESP_LOGI(TAG, "Hall: %d", );
 
     if (value > HALL_THRESHOLD)
     {

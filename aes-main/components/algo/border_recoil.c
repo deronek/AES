@@ -39,6 +39,7 @@ void border_recoil_run_state()
             /**
              * @brief Left sensor was triggered, recoil to the right.
              */
+            ESP_LOGW(TAG, "Left reflectance sensor triggered, recoil to the right");
             border_recoil_state = BORDER_RECOIL_DIRECTION_RIGHT;
             border_recoil_start();
         }
@@ -46,9 +47,11 @@ void border_recoil_run_state()
         {
             /**
              * @brief Right sensor was triggered, recoil to the left.
+             * @todo Uncomment when right sensor will work.
              */
-            border_recoil_state = BORDER_RECOIL_DIRECTION_LEFT;
-            border_recoil_start();
+            // ESP_LOGW(TAG, "Right reflectance sensor triggered, recoil to the left");
+            // border_recoil_state = BORDER_RECOIL_DIRECTION_LEFT;
+            // border_recoil_start();
         }
         break;
     case BORDER_RECOIL_DIRECTION_LEFT:

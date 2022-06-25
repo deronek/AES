@@ -14,7 +14,7 @@
 /**
  * @todo Fill in the value.
  */
-#define REFLECTANCE_THRESHOLD (500)
+#define REFLECTANCE_THRESHOLD (200)
 
 // structs
 
@@ -61,10 +61,6 @@ void reflectance_init()
         // gpio_set_pull_mode(reflectance_gpios[0], GPIO_FLOATING);
         adc1_config_channel_atten(reflectance_adc_channels[i], ADC_ATTEN_6db);
     }
-
-    // hall
-    // adc2_config_channel_atten(ADC2_CHANNEL_3, ADC_ATTEN_DB_0);
-    // gpio_set_pull_mode(GPIO_NUM_15, GPIO_PULLUP_ONLY);
 }
 
 TASK reflectance_main()
@@ -78,16 +74,11 @@ TASK reflectance_main()
         //          timer_measurements[2],
         //          timer_measurements[3]);
 
-        ESP_LOGI(TAG, "%d %d %d %d",
-                 sensor_voltage[0],
-                 sensor_voltage[1],
-                 sensor_voltage[2],
-                 sensor_voltage[3]);
-
-        // int value;
-        // adc2_get_raw(ADC2_CHANNEL_3, ADC_WIDTH_BIT_12, &value);
-
-        // ESP_LOGI(TAG, "%d", value);
+        // ESP_LOGI(TAG, "%d %d %d %d",
+        //          sensor_voltage[0],
+        //          sensor_voltage[1],
+        //          sensor_voltage[2],
+        //          sensor_voltage[3]);
 
         reflectance_output();
 
