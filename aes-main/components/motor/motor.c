@@ -15,6 +15,7 @@
  * turn (because of motor/tracks/ground friction).
  */
 #define SPEED_MIN (7.0F)
+#define SPEED_MID (20.0F)
 #define SPEED_MAX (25.0F)
 
 #define MOTOR_CORRECTION_L (1.0F)
@@ -22,6 +23,9 @@
 
 #define SPEED_MIN_L (SPEED_MIN * MOTOR_CORRECTION_L)
 #define SPEED_MIN_R (SPEED_MIN * MOTOR_CORRECTION_R)
+
+#define SPEED_MID_L (SPEED_MID * MOTOR_CORRECTION_L)
+#define SPEED_MID_R (SPEED_MID * MOTOR_CORRECTION_R)
 
 #define SPEED_MAX_L (SPEED_MAX * MOTOR_CORRECTION_L)
 #define SPEED_MAX_R (SPEED_MAX * MOTOR_CORRECTION_R)
@@ -228,11 +232,11 @@ static float motor_calculate_pwm1(float omega)
     }
     else if ((omega > (-M_PI / 2.0) && (omega < 0)))
     {
-        pwm = ((SPEED_MAX_R - SPEED_MIN_R) / (M_PI / 2.0)) * omega + SPEED_MAX_R;
+        pwm = ((SPEED_MID_R - SPEED_MIN_R) / (M_PI / 2.0)) * omega + SPEED_MID_R;
     }
     else // omega >= 0
     {
-        pwm = SPEED_MAX_R;
+        pwm = ((SPEED_MAX_R - SPEED_MID_R) / M_PI) * omega + SPEED_MID_R;
     }
     return pwm;
 }
@@ -245,11 +249,11 @@ static float motor_calculate_pwm2(float omega)
     float pwm;
     if (omega <= 0)
     {
-        pwm = SPEED_MAX_L;
+        pwm = (-(SPEED_MAX_L - SPEED_MID_L) / M_PI) * omega + SPEED_MID_L;
     }
     else if ((omega > 0) && (omega < (M_PI / 2.0)))
     {
-        pwm = (-(SPEED_MAX_L - SPEED_MIN_L) / (M_PI / 2.0)) * omega + SPEED_MAX_L;
+        pwm = (-(SPEED_MID_L - SPEED_MIN_L) / (M_PI / 2.0)) * omega + SPEED_MID_L;
     }
     else // omega >= (M_PI / 2)
     {
