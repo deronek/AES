@@ -26,6 +26,7 @@ extern float algo_follow_wall_angle;
 extern bool algo_obstacle_avoidance_request_follow_wall;
 extern obstacle_avoidance_state_type algo_obstacle_avoidance_state;
 extern float algo_avoid_obstacle_angle;
+bool algo_obstacle_avoidance_request_critical_steering;
 
 // function declarations;
 void obstacle_avoidance_init();
