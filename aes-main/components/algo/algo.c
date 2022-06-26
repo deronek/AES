@@ -13,6 +13,8 @@
 #include "border_recoil.h"
 #include "hall.h"
 
+#include "reflectance.h"
+
 // constants
 
 // #define COMP_FILTER_ALPHA 0.5
@@ -130,6 +132,7 @@ static void algo_prepare()
      * @brief Photo encoder
      */
     photo_encoder_enable_isr();
+    reflectance_reset();
 }
 
 TASK algo_main()
@@ -139,6 +142,7 @@ TASK algo_main()
 
     vTaskDelay(pdMS_TO_TICKS(50));
     algo_running = true;
+    reflectance_measurement_enabled = true;
     app_manager_notify_main(TASK_ID_ALGO, EVENT_STARTED_DRIVING);
     motor_start(goal_heading_angle_to_goal());
 
@@ -226,6 +230,9 @@ void algo_cleanup()
     final_heading_reset();
     obstacle_avoidance_reset();
     hall_reset();
+    border_recoil_reset();
+
+    reflectance_reset();
 
     algo_stop_requested = false;
 
@@ -253,11 +260,12 @@ void algo_run()
     hall_measure();
     if (algo_hall_detected)
     {
+        ESP_LOGI(TAG, "Hall sensor triggered, stopping");
         algo_stop_requested = true;
         return;
     }
 
-    // border_recoil_calculate();
+    border_recoil_calculate();
 
     heading_imu_calculate();
     goal_heading_calculate();

@@ -196,7 +196,7 @@ void app_manager_create_sensor_tasks()
         NULL,
         4,
         &app_manager_reflectance_task_handle,
-        1);
+        0);
 }
 
 void app_manager_create_main_task()

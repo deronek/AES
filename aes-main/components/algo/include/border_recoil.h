@@ -12,6 +12,8 @@ typedef enum border_recoil_state_type_tag
 } border_recoil_state_type;
 
 // global variables
+extern border_recoil_state_type border_recoil_state;
+extern float border_recoil_coefficient;
 
 // function declarations
 void border_recoil_init();

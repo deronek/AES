@@ -1,16 +1,19 @@
 #include "border_recoil.h"
 
+#include "algo.h"
 #include "obstacle_avoidance.h"
 
 #include "reflectance.h"
 
 // constants
-#define BORDER_RECOIL_COEFFICIENT_DEC_PER_TICK (0.05)
+#define BORDER_RECOIL_COEFFICIENT_DEC_PER_TICK (0.015)
+
+// global variables
+border_recoil_state_type border_recoil_state;
+float border_recoil_coefficient;
 
 // local variables
 static const char *TAG = "algo-border-recoil";
-border_recoil_state_type border_recoil_state;
-float border_recoil_coefficient;
 
 // function declarations
 static void border_recoil_run_state();
@@ -28,6 +31,12 @@ void border_recoil_calculate()
 {
     border_recoil_run_state();
     border_recoil_output();
+
+    // if (border_recoil_state != BORDER_RECOIL_NONE)
+    // {
+    //     ESP_LOGE(TAG, "Border recoil state %d", border_recoil_state);
+    //     algo_request_stop();
+    // }
 }
 
 void border_recoil_run_state()
@@ -50,16 +59,17 @@ void border_recoil_run_state()
              * @brief Right sensor was triggered, recoil to the left.
              * @todo Uncomment when right sensor will work.
              */
-            // ESP_LOGW(TAG, "Right reflectance sensor triggered, recoil to the left");
-            // border_recoil_state = BORDER_RECOIL_DIRECTION_LEFT;
-            // border_recoil_start();
+            ESP_LOGW(TAG, "Right reflectance sensor triggered, recoil to the left");
+            border_recoil_state = BORDER_RECOIL_DIRECTION_LEFT;
+            border_recoil_start();
         }
         break;
     case BORDER_RECOIL_DIRECTION_LEFT:
     case BORDER_RECOIL_DIRECTION_RIGHT:
         border_recoil_coefficient -= BORDER_RECOIL_COEFFICIENT_DEC_PER_TICK;
-        if (border_recoil_coefficient < 0)
+        if (border_recoil_coefficient <= 0)
         {
+            ESP_LOGW(TAG, "Stopping recoiling from the border");
             border_recoil_clear_reflectance_request();
             border_recoil_reset();
         }
@@ -71,13 +81,13 @@ void border_recoil_output()
     switch (algo_obstacle_avoidance_state)
     {
     case OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE:
-        if (border_recoil_state == BORDER_RECOIL_DIRECTION_LEFT)
+        if (border_recoil_state == BORDER_RECOIL_DIRECTION_RIGHT)
         {
             obstacle_avoidance_force_ccw();
         }
         break;
     case OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE:
-        if (border_recoil_state == BORDER_RECOIL_DIRECTION_RIGHT)
+        if (border_recoil_state == BORDER_RECOIL_DIRECTION_LEFT)
         {
             obstacle_avoidance_force_cw();
         }
@@ -95,10 +105,10 @@ void border_recoil_clear_reflectance_request()
     switch (border_recoil_state)
     {
     case BORDER_RECOIL_DIRECTION_LEFT:
-        reflectance_request_avoidance.right = false;
+        reflectance_reset();
         break;
     case BORDER_RECOIL_DIRECTION_RIGHT:
-        reflectance_request_avoidance.left = false;
+        reflectance_reset();
         break;
     default:
         break;

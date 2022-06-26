@@ -178,7 +178,7 @@ void hc_sr04_init()
         // rmt_rx.rx_config.idle_threshold = rmt_item32_tIMEOUT_US / 10 * (RMT_TICK_10_US);
         rmt_rx.rx_config.idle_threshold = 9280; // 2 m distance
         rmt_config(&rmt_rx);
-        rmt_driver_install(rmt_rx.channel, 1000, 0);
+        rmt_driver_install(rmt_rx.channel, 2000, 0);
 
         rmt_get_ringbuf_handle(i, &(hc_sr04_rb_handles[i]));
 

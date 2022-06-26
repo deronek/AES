@@ -15,7 +15,7 @@
  * turn (because of motor/tracks/ground friction).
  */
 #define SPEED_MIN (7.0F)
-#define SPEED_MID (20.0F)
+#define SPEED_MID (23.5F)
 #define SPEED_MAX (25.0F)
 
 #define MOTOR_CORRECTION_L (1.0F)
@@ -73,13 +73,12 @@
  * coefficients of the motor PID regulator.
  * @todo Adjust these values.
  */
-#define kP (3.5)
+#define kP (2.0)
+// #define kP (3.5)
+#define kD (0.5)
 // #define kD (1.0)
-#define kD (1.0)
 // #define kI (2.0)
-// #define kI (1.5)
-// #define kI (0.2)
-#define kI (0.00)
+#define kI (0.03)
 
 /**
  * @brief Derivative term implemented as IIR high-pass filter.
