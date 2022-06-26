@@ -109,7 +109,7 @@ def draw_radar(surface: pygame.Surface, distance):
             d /= 2000000
             d = max(min(d, 1), 0)
             d = 1 - d
-            RADAR_MARKERS.add(radar, ANGLES_MARKERS[angle], d)
+            RADAR_MARKERS.add(surface, ANGLES_MARKERS[angle], d)
             # r = randint(0, 30)
             # if r == 5:
             #     RADAR_MARKERS.add(surface, ANGLES_MARKERS[angle], d)
