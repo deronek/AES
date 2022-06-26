@@ -46,6 +46,7 @@ BEHAVIOUR_RECT = pygame.Rect(1330, 450, 550, 300)
 BUTTONS_RECT = pygame.Rect(1530, 780, 390, 280)
 CONNECTION_STATUS_RECT = pygame.Rect(28, 985, 757, 80)
 TIMESTAMP_RECT = pygame.Rect(700, 985, 1100, 80)
+RADAR_RECT = pygame.Rect(40, 160, 1000, 505)
 
 FPS = 30
 
@@ -83,6 +84,8 @@ class AESController:
 
         self.app_manager_surface = self.window.subsurface(APP_MANAGER_RECT)
         self.behaviour_surface = self.window.subsurface(BEHAVIOUR_RECT)
+        self.radar_surface = self.window.subsurface(RADAR_RECT)
+        # self.radar_surface.convert_alpha()
 
     def reset_data(self):
         self.current_heading = 0.0
@@ -117,6 +120,7 @@ class AESController:
             distance = hc_sr04.distance
             # distance = [90000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
         else:
+            # distance = random.sample(range(0, 2000000), 8)
             distance = []
 
         if self.ble.app_manager.available:
@@ -128,7 +132,7 @@ class AESController:
                                       follow_wall_angle=self.follow_wall_heading,
                                       avoid_obstacle_angle=self.avoid_obstacle_angle),
                          (415, 680))
-        self.window.blit(draw_radar(distance), (40, 160))
+        draw_radar(self.radar_surface, distance)
         draw_connection_status(self.window.subsurface(CONNECTION_STATUS_RECT), self.ble.client.is_connected)
         draw_timestamp(self.window.subsurface(TIMESTAMP_RECT), timestamp)
         draw_app_manager(self.app_manager_surface, self.app_manager_state)
