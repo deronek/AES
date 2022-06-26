@@ -1,5 +1,6 @@
 import os
 from enum import auto, Enum
+from typing import Optional
 
 import pygame
 
@@ -21,7 +22,7 @@ class AppManagerState(Enum):
 # APP_MANAGER = AppManagerState.APP_MANAGER_READY
 
 
-def draw_app_manager(surface: pygame.Surface, state: AppManagerState):
+def draw_app_manager(surface: pygame.Surface, state: Optional[AppManagerState]):
     surface.blit(FONT.render("APP MANAGER STATUS", False, WHITE), (0, 0))
 
     for index, item in enumerate(AppManagerState):

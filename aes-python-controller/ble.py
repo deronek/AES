@@ -78,6 +78,7 @@ class Algo(LockedData):
         behaviour: BehaviourState
         goal_heading: float
         follow_wall_heading: float
+        avoid_obstacle_angle: float
 
         def __init__(self, data: list):
             # TODO: data should be bytes in LockedData, not list
@@ -88,6 +89,7 @@ class Algo(LockedData):
             self.behaviour = BehaviourState(int.from_bytes(bytes(data[12:16]), byteorder='little'))
             self.goal_heading = struct.unpack('f', bytes(data[16:20]))[0]
             self.follow_wall_heading = struct.unpack('f', bytes(data[20:24]))[0]
+            self.avoid_obstacle_angle = struct.unpack('f', bytes(data[24:28]))[0]
 
     def __init__(self):
         super().__init__()
@@ -160,12 +162,13 @@ class BLE:
     tx_queue: asyncio.Queue
     timestamp: int
 
-    def __init__(self):
+    def __init__(self, ui_reset_data_handle):
         self.hc_sr04 = HcSr04()
         self.algo = Algo()
         self.app_manager = AppManager()
-        self.heading = 0
         self.timestamp = 0
+
+        self.ui_reset_data_handle = ui_reset_data_handle
 
         logger = logging.getLogger(self.__class__.__name__)
         logging_handler = logging.FileHandler('ble.log')
@@ -177,6 +180,13 @@ class BLE:
 
         self.last_time = None
         self.times = []
+
+    def reset_data(self):
+        self.algo.available = False
+        self.app_manager.available = False
+        self.hc_sr04.available = False
+        self.timestamp = 0
+        self.ui_reset_data_handle()
 
     class BlePacket:
         id: SensorID
@@ -250,7 +260,8 @@ class BLE:
                 print(f"Exception in BLE.main(): {str(e)}")
                 # try again
                 await self.client.disconnect()
-                await asyncio.sleep(3)
+                self.reset_data()
+                await asyncio.sleep(1)
 
     async def ble_tx(self):
         while True:
