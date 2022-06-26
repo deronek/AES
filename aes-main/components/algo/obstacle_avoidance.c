@@ -197,8 +197,9 @@ void obstacle_avoidance_calculate()
         if (should_enter_avoid_obstacle_behaviour())
         {
             algo_obstacle_avoidance_state = OA_BEHAVIOUR_AVOID_OBSTACLE;
+            algo_follow_wall_angle = INFINITY;
         }
-        if (should_exit_follow_wall_behaviour())
+        else if (should_exit_follow_wall_behaviour())
         {
             algo_obstacle_avoidance_state = OA_BEHAVIOUR_NONE;
             algo_follow_wall_angle = INFINITY;
