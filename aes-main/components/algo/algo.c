@@ -43,6 +43,7 @@ bool algo_stop_requested = false;
 static const char *TAG = "algo";
 
 static float finish_heading = 30.0;
+static uint32_t algo_tick_counter = 0;
 
 float phiHat_rad = 0.0f;
 float thetaHat_rad = 0.0f;
@@ -133,6 +134,8 @@ static void algo_prepare()
      */
     photo_encoder_enable_isr();
     reflectance_reset();
+
+    algo_tick_counter = 0;
 }
 
 TASK algo_main()
@@ -142,7 +145,6 @@ TASK algo_main()
 
     vTaskDelay(pdMS_TO_TICKS(50));
     algo_running = true;
-    reflectance_measurement_enabled = true;
     app_manager_notify_main(TASK_ID_ALGO, EVENT_STARTED_DRIVING);
     motor_start(goal_heading_angle_to_goal());
 
@@ -173,6 +175,7 @@ TASK algo_main()
         }
 
         algo_ble_send();
+        algo_tick_counter++;
         /**
          * @brief We want to run algo calculations at least with ALGO_FREQUENCY.
          * If we do not meet that time, signal a warning.
@@ -257,6 +260,14 @@ void algo_ble_send()
 
 void algo_run()
 {
+    /**
+     * @brief Enable reflectance measurement only after 50 ticks (~5s).
+     */
+    if (algo_tick_counter == 50)
+    {
+        reflectance_measurement_enabled = true;
+    }
+
     hall_measure();
     if (algo_hall_detected)
     {
