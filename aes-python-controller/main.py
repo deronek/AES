@@ -120,8 +120,8 @@ class AESController:
             distance = hc_sr04.distance
             # distance = [90000, 20000, 30000, 40000, 50000, 60000, 70000, 80000]
         else:
-            distance = random.sample(range(0, 2000000), 8)
-            # distance = []
+            # distance = random.sample(range(0, 2000000), 8)
+            distance = []
 
         if self.ble.app_manager.available:
             self.app_manager_state = await self.ble.app_manager.get_data()
