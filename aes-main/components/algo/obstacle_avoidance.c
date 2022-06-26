@@ -92,6 +92,7 @@ static int most_dangerous_sector = -1;
 static int most_dangerous_sector_measurement = -1;
 static int last_most_dangerous_sector = -1;
 static int last_most_dangerous_sector_measurement = -1;
+static int obstacle_disappeared_ticks = 0;
 
 /**
  * @todo Fix type
@@ -322,7 +323,8 @@ bool should_exit_follow_wall_behaviour()
     if ((most_dangerous_sector == -1 ||
          ((new_distance_to_goal < distance_to_goal) &&
           (fabsf(algo_goal_heading - obstacle_avoidance_angle) < (M_PI / 2)))) &&
-        follow_wall_ticks > 3)
+        follow_wall_ticks > 3 &&
+        obstacle_disappeared_ticks > 3)
     {
         return true;
     }
@@ -421,6 +423,7 @@ void calculate_most_dangerous_sector()
          */
         ESP_LOGI(TAG, "Sector safe request");
         most_dangerous_sector = last_most_dangerous_sector_measurement;
+        obstacle_disappeared_ticks = 0;
     }
     else if ((abs(most_dangerous_sector_measurement - last_most_dangerous_sector_measurement) < 3))
     {
@@ -432,8 +435,9 @@ void calculate_most_dangerous_sector()
         /**
          * @todo Consider switching directions of the follow angle behaviour.
          */
-        ESP_LOGI(TAG, "Requesting recalculation of follow wall direction");
+        // ESP_LOGI(TAG, "Requesting recalculation of follow wall direction");
         most_dangerous_sector = most_dangerous_sector_measurement;
+        obstacle_disappeared_ticks++;
         algo_obstacle_avoidance_state = OA_BEHAVIOUR_NONE;
     }
 }
