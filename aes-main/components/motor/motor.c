@@ -233,9 +233,13 @@ static float motor_calculate_pwm1(float omega)
     {
         pwm = ((SPEED_MID_R - SPEED_MIN_R) / (M_PI / 2.0)) * omega + SPEED_MID_R;
     }
-    else // omega >= 0
+    else if ((omega > 0) && (omega < M_PI))
     {
         pwm = ((SPEED_MAX_R - SPEED_MID_R) / M_PI) * omega + SPEED_MID_R;
+    }
+    else // omega > M_PI
+    {
+        pwm = SPEED_MAX_R;
     }
     return pwm;
 }
@@ -246,7 +250,11 @@ static float motor_calculate_pwm1(float omega)
 static float motor_calculate_pwm2(float omega)
 {
     float pwm;
-    if (omega <= 0)
+    if (omega <= -M_PI)
+    {
+        pwm = SPEED_MAX_L;
+    }
+    else if ((omega > M_PI) && (omega <= 0))
     {
         pwm = (-(SPEED_MAX_L - SPEED_MID_L) / M_PI) * omega + SPEED_MID_L;
     }
