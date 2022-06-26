@@ -4,7 +4,7 @@ from typing import Optional
 
 import pygame
 
-from constants import GREEN, RED, ASSETS_DIR, GRAY, WHITE, DARK_GRAY
+from constants import GREEN, RED, ASSETS_DIR, GRAY, WHITE, DARK_GRAY, YELLOW
 
 FONT = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 60)
 FONT_LINES = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 40)
@@ -13,11 +13,13 @@ FONT_LINES = pygame.font.Font(os.path.join(ASSETS_DIR, 'Iceland-Regular.ttf'), 4
 class BehaviourState(Enum):
     BEHAVIOUR_DRIVE_TO_GOAL = 0
     BEHAVIOUR_FOLLOW_THE_WALL = 1
+    BEHAVIOUR_AVOID_OBSTACLE = 2
 
 
 BEHAVIOUR_COLORS = {
     BehaviourState.BEHAVIOUR_DRIVE_TO_GOAL: GREEN,
-    BehaviourState.BEHAVIOUR_FOLLOW_THE_WALL: RED
+    BehaviourState.BEHAVIOUR_FOLLOW_THE_WALL: YELLOW,
+    BehaviourState.BEHAVIOUR_AVOID_OBSTACLE: RED
 }
 
 

@@ -7,7 +7,7 @@ from typing import Optional
 import pygame
 from pygame.math import Vector2
 
-from constants import GREEN, RED, ASSETS_DIR, GRAY, WHITE, BLACK
+from constants import GREEN, RED, ASSETS_DIR, GRAY, WHITE, BLACK, YELLOW
 
 heading = 0
 
@@ -44,7 +44,10 @@ def arrow(screen, color, angle, trirad=10, thickness=5):
                                          end[1] + trirad * math.cos(rotation + ARROW_END_CONSTANT))))
 
 
-def draw_heading(current_heading: float, goal_heading: Optional[float], follow_wall_angle: Optional[float]):
+def draw_heading(current_heading: float,
+                 goal_heading: Optional[float],
+                 follow_wall_angle: Optional[float],
+                 avoid_obstacle_angle: Optional[float]):
     IMG.set_colorkey((0, 0, 0))
     heading = pygame.Surface(SIZE)
     heading.fill(BLACK)
@@ -54,10 +57,13 @@ def draw_heading(current_heading: float, goal_heading: Optional[float], follow_w
     heading.blit(car, (
         heading.get_width() / 2 - int(car.get_width() / 2), heading.get_width() / 2 - int(car.get_width() / 2)))
 
-    if goal_heading:
+    if goal_heading is not None:
         arrow(heading, GREEN, goal_heading)
-    if follow_wall_angle and follow_wall_angle != math.inf:
-        arrow(heading, RED, follow_wall_angle)
+    if follow_wall_angle is not None and follow_wall_angle != math.inf:
+        arrow(heading, YELLOW, follow_wall_angle)
+    if avoid_obstacle_angle is not None and avoid_obstacle_angle != math.inf:
+        arrow(heading, RED, avoid_obstacle_angle)
+
 
     # rotated = heading.get_rect(center=(-50, 50))
     # angle = FONT.render("ANGLE: 0\N{DEGREE SIGN}", False, WHITE)
