@@ -19,5 +19,6 @@ extern float border_recoil_coefficient;
 void border_recoil_init();
 void border_recoil_calculate();
 void border_recoil_reset();
+float border_recoil_get_coefficient_scaled();
 
 #endif

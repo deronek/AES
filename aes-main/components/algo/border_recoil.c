@@ -5,8 +5,13 @@
 
 #include "reflectance.h"
 
+#include <math.h>
+
 // constants
-#define BORDER_RECOIL_COEFFICIENT_DEC_PER_TICK (0.015)
+#define BORDER_RECOIL_TIME_S (6)
+#define BORDER_RECOIL_COEFFICIENT_DEC_PER_TICK (ALGO_FREQUENCY / BORDER_RECOIL_TIME_S)
+
+#define BORDER_RECOIL_EXPONENT_COEFFICIENT (15)
 
 // global variables
 border_recoil_state_type border_recoil_state;
@@ -94,6 +99,11 @@ void border_recoil_output()
     default:
         break;
     }
+}
+
+float border_recoil_get_coefficient_scaled()
+{
+    return (1.0 - expf(-BORDER_RECOIL_EXPONENT_COEFFICIENT * border_recoil_coefficient));
 }
 
 void border_recoil_clear_reflectance_request()

@@ -38,11 +38,11 @@ void final_heading_calculate()
          */
         if (border_recoil_state == BORDER_RECOIL_DIRECTION_LEFT)
         {
-            algo_final_heading += (2 * M_PI / 3) * border_recoil_coefficient;
+            algo_final_heading += (2 * M_PI / 3) * border_recoil_get_coefficient_scaled();
         }
         else if (border_recoil_state == BORDER_RECOIL_DIRECTION_RIGHT)
         {
-            algo_final_heading -= (2 * M_PI / 3) * border_recoil_coefficient;
+            algo_final_heading -= (2 * M_PI / 3) * border_recoil_get_coefficient_scaled();
         }
         break;
     case OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE:
