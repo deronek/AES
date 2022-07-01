@@ -15,8 +15,9 @@
  * turn (because of motor/tracks/ground friction).
  */
 #define SPEED_MIN (7.0F)
-#define SPEED_MID (23.5F)
-#define SPEED_MAX (25.0F)
+// #define SPEED_MIN (6.5F)
+#define SPEED_MID (26.0F)
+#define SPEED_MAX (30.0F)
 
 #define MOTOR_CORRECTION_L (1.0F)
 #define MOTOR_CORRECTION_R (0.95F)
@@ -73,12 +74,11 @@
  * coefficients of the motor PID regulator.
  * @todo Adjust these values.
  */
-#define kP (2.0)
-// #define kP (3.5)
-#define kD (0.5)
-// #define kD (1.0)
-// #define kI (2.0)
-#define kI (0.03)
+#define kP (5.0)
+#define kD (0.3)
+// #define kD (0.5)
+#define kI (0.02)
+// #define kI (0.00)
 
 /**
  * @brief Derivative term implemented as IIR high-pass filter.
@@ -231,9 +231,9 @@ static float motor_calculate_pwm1(float omega)
     }
     else if ((omega > (-M_PI / 2.0) && (omega < 0)))
     {
-        pwm = ((SPEED_MID_R - SPEED_MIN_R) / (M_PI / 2.0)) * omega + SPEED_MID_R;
+        pwm = (-(SPEED_MIN_R - SPEED_MID_R) / (M_PI / 2.0)) * omega + SPEED_MID_R;
     }
-    else if ((omega > 0) && (omega < M_PI))
+    else if ((omega >= 0) && (omega < M_PI))
     {
         pwm = ((SPEED_MAX_R - SPEED_MID_R) / M_PI) * omega + SPEED_MID_R;
     }
@@ -254,13 +254,13 @@ static float motor_calculate_pwm2(float omega)
     {
         pwm = SPEED_MAX_L;
     }
-    else if ((omega > M_PI) && (omega <= 0))
+    else if ((omega > -M_PI) && (omega <= 0))
     {
         pwm = (-(SPEED_MAX_L - SPEED_MID_L) / M_PI) * omega + SPEED_MID_L;
     }
     else if ((omega > 0) && (omega < (M_PI / 2.0)))
     {
-        pwm = (-(SPEED_MID_L - SPEED_MIN_L) / (M_PI / 2.0)) * omega + SPEED_MID_L;
+        pwm = ((SPEED_MIN_L - SPEED_MID_L) / (M_PI / 2.0)) * omega + SPEED_MID_L;
     }
     else // omega >= (M_PI / 2)
     {

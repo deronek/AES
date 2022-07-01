@@ -115,12 +115,13 @@ TASK position_process()
         {
             break;
         }
-        accel_velocity_type accel_velocity;
-        retval = xQueuePeek(accel_velocity_queue, &accel_velocity, 0);
-        if (retval != pdTRUE)
-        {
-            ESP_LOGE(TAG, "No data in accel queue");
-        }
+        // accel_velocity_type accel_velocity;
+        // retval = xQueuePeek(accel_velocity_queue, &accel_velocity, 0);
+        // if (retval != pdTRUE)
+        // {
+        // ESP_LOGE(TAG, "No data in accel queue");
+        // }
+        accel_velocity_type accel_velocity = {0};
 
         photo_encoder_position_type photo_encoder_position;
         retval = xQueuePeek(photo_encoder_position_queue, &photo_encoder_position, 0);

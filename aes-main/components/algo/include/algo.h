@@ -51,6 +51,7 @@ extern TaskHandle_t algo_position_process_task_handle,
     algo_position_accel_process_task_handle;
 extern QueueHandle_t algo_ble_data_queue;
 extern bool algo_running;
+extern uint32_t algo_tick_counter;
 
 // function declarations
 void algo_init();
