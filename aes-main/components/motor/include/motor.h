@@ -42,5 +42,6 @@ void motor_init();
 void motor_start(float goal_heading);
 void motor_tick();
 void motor_reset();
+void motor_run_tc();
 
 #endif

@@ -6,6 +6,7 @@
 #include "driver/mcpwm.h"
 
 #include <math.h>
+#include <float.h>
 
 // constants
 /**
@@ -30,6 +31,45 @@
 
 #define SPEED_MAX_L (SPEED_MAX * MOTOR_CORRECTION_L)
 #define SPEED_MAX_R (SPEED_MAX * MOTOR_CORRECTION_R)
+
+/**
+ * @brief Forward switch threshold.
+ * If requested angle goes over the threshold,
+ * the vehicle will start moving one of the tracks
+ * in the reverse direction.
+ */
+#define FST (M_PI / 6.0)
+
+/**
+ * @brief Turn speedup threshold.
+ * Creates an interpolation point of angle which
+ * will result in maximum speed of both motors in reverse direction.
+ */
+#define TST (M_PI / 2.0)
+
+/**
+ * @brief PWM1 (right motor) linear function coefficients.
+ */
+#define PWM1_A1 ((SPEED_MAX_R - SPEED_MIN_R) / (FST - TST))
+#define PWM1_B1 (PWM1_A1 * FST + SPEED_MIN_R)
+
+#define PWM1_A2 ((SPEED_MID_R - SPEED_MIN_R) / (FST))
+#define PWM1_B2 (SPEED_MID_R)
+
+#define PWM1_A3 ((SPEED_MAX_R - SPEED_MID_R) / (TST))
+#define PWM1_B3 (SPEED_MID_R)
+
+/**
+ * @brief PWM2 (left motor) linear function coefficients.
+ */
+#define PWM2_A1 ((SPEED_MID_L - SPEED_MAX_L) / (TST))
+#define PWM2_B1 (SPEED_MID_L)
+
+#define PWM2_A2 ((SPEED_MIN_L - SPEED_MID_L) / (FST))
+#define PWM2_B2 (SPEED_MID_L)
+
+#define PWM2_A3 ((SPEED_MIN_L - SPEED_MAX_L) / (FST - TST))
+#define PWM2_B3 (PWM2_A3 * (-FST) + SPEED_MIN_L)
 
 /**
  * @todo Maybe correct speeds on motors each.
@@ -121,6 +161,8 @@ static float error_hat = 0.0;
 // local function declarations
 static float motor_calculate_pwm1(float omega);
 static float motor_calculate_pwm2(float omega);
+static int motor_calculate_dir1(float omega);
+static int motor_calculate_dir2(float omega);
 static void motor_perform_control();
 
 // function definitions
@@ -160,18 +202,47 @@ TASK motor_main()
     ;
 }
 
+void compare_float(float received, float expected)
+{
+    float epsilon = 1.0 / 16384;
+    ESP_LOGI(TAG, "Comparing received %f to expected %f", received, expected);
+    bool result = fabs(received - expected) < epsilon;
+    if (result)
+    {
+        ESP_LOGI(TAG, "Pass");
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Fail");
+        // abort();
+    }
+}
+
+void motor_run_tc()
+{
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -181), SPEED_MAX_R);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -180), SPEED_MAX_R);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -91), SPEED_MAX_R);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -90), SPEED_MAX_R);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -30), SPEED_MIN_R);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 0), SPEED_MID_R);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 90), SPEED_MAX_R);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 91), SPEED_MAX_R);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 180), SPEED_MAX_R);
+
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -181), SPEED_MAX_L);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -180), SPEED_MAX_L);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -91), SPEED_MAX_L);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -90), SPEED_MAX_L);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 0), SPEED_MID_L);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 30), SPEED_MIN_L);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 90), SPEED_MAX_L);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 91), SPEED_MAX_L);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 180), SPEED_MAX_L);
+}
+
 void motor_tick(motor_control_input_data_type input_data)
 {
-    // /**
-    //  * @brief Calculate omega using current_heading, expected_heading
-    //  * and a PID regulator.
-    //  * Omega needs to be in rad/s.
-    //  */
-    // float omega = 0.0;
-
-    // float v_left = (2 * SPEED + omega * L) / (2 * R);
-    // float v_right = (2 * SPEED - omega * L) / (2 * R);
-
     /**
      * @brief Derivative part.
      */
@@ -215,29 +286,35 @@ void motor_tick(motor_control_input_data_type input_data)
 
     motor_control_output_data.pwm1 = motor_calculate_pwm1(omega);
     motor_control_output_data.pwm2 = motor_calculate_pwm2(omega);
+    motor_control_output_data.dir1 = motor_calculate_dir1(omega);
+    motor_control_output_data.dir2 = motor_calculate_dir2(omega);
 
     motor_perform_control();
 }
 
 /**
- * @brief Calculate PWM duty cycle for the left motor.
+ * @brief Calculate PWM duty cycle for the right motor.
  */
 static float motor_calculate_pwm1(float omega)
 {
     float pwm;
-    if (omega <= (-M_PI / 2.0))
+    if (omega <= (-TST))
     {
-        pwm = SPEED_MIN_R;
+        pwm = SPEED_MAX_R;
     }
-    else if ((omega > (-M_PI / 2.0) && (omega < 0)))
+    else if ((omega > (-TST)) && (omega < (-FST)))
     {
-        pwm = (-(SPEED_MIN_R - SPEED_MID_R) / (M_PI / 2.0)) * omega + SPEED_MID_R;
+        pwm = PWM1_A1 * omega + PWM1_B1;
     }
-    else if ((omega >= 0) && (omega < M_PI))
+    else if ((omega >= (-FST)) && (omega < 0))
     {
-        pwm = ((SPEED_MAX_R - SPEED_MID_R) / M_PI) * omega + SPEED_MID_R;
+        pwm = PWM1_A2 * omega + PWM1_B2;
     }
-    else // omega > M_PI
+    else if ((omega >= 0) && (omega < TST))
+    {
+        pwm = PWM1_A3 * omega + PWM1_B3;
+    }
+    else // omega >= TST
     {
         pwm = SPEED_MAX_R;
     }
@@ -245,28 +322,60 @@ static float motor_calculate_pwm1(float omega)
 }
 
 /**
- * @brief Calculate PWM duty cycle for the right motor.
+ * @brief Calculate PWM duty cycle for the left motor.
  */
 static float motor_calculate_pwm2(float omega)
 {
     float pwm;
-    if (omega <= -M_PI)
+    if (omega <= (-TST))
     {
         pwm = SPEED_MAX_L;
     }
-    else if ((omega > -M_PI) && (omega <= 0))
+    else if ((omega > (-TST)) && (omega < 0))
     {
-        pwm = (-(SPEED_MAX_L - SPEED_MID_L) / M_PI) * omega + SPEED_MID_L;
+        pwm = PWM2_A1 * omega + PWM2_B1;
     }
-    else if ((omega > 0) && (omega < (M_PI / 2.0)))
+    else if ((omega >= 0) && (omega < FST))
     {
-        pwm = ((SPEED_MIN_L - SPEED_MID_L) / (M_PI / 2.0)) * omega + SPEED_MID_L;
+        pwm = PWM2_A2 * omega + PWM2_B2;
     }
-    else // omega >= (M_PI / 2)
+    else if ((omega >= FST) && (omega < TST))
     {
-        pwm = SPEED_MIN_L;
+        pwm = PWM2_A3 * omega + PWM2_B3;
+    }
+    else // omega >= TST
+    {
+        pwm = SPEED_MAX_L;
     }
     return pwm;
+}
+
+static int motor_calculate_dir1(float omega)
+{
+    int dir;
+    if (omega <= (-FST))
+    {
+        dir = 1;
+    }
+    else
+    {
+        dir = 0;
+    }
+    return dir;
+}
+
+static int motor_calculate_dir2(float omega)
+{
+    int dir;
+    if (omega > FST)
+    {
+        dir = 1;
+    }
+    else
+    {
+        dir = 0;
+    }
+    return dir;
 }
 
 void motor_start(float goal_heading)
