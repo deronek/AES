@@ -17,8 +17,8 @@
  */
 #define SPEED_MIN (7.0F)
 // #define SPEED_MIN (6.5F)
-#define SPEED_MID (26.0F)
-#define SPEED_MAX (30.0F)
+#define SPEED_MID (24.0F)
+#define SPEED_MAX (28.0F)
 
 #define MOTOR_CORRECTION_L (1.0F)
 #define MOTOR_CORRECTION_R (0.95F)
@@ -46,6 +46,17 @@
  * will result in maximum speed of both motors in reverse direction.
  */
 #define TST (M_PI / 2.0)
+
+/**
+ * @brief Threshold below which integral part
+ * of the PID regulator is used.
+ */
+#define INTEGRAL_ACTIVATION_THRESHOLD (FST)
+
+/**
+ * @brief Maximum/minimum value of the integral term.
+ */
+#define INTEGRAL_BOUND (M_PI)
 
 /**
  * @brief PWM1 (right motor) linear function coefficients.
@@ -260,9 +271,32 @@ void motor_tick(motor_control_input_data_type input_data)
 
     // error_dot = error - old_error;
     error_dot = ERROR_DOT_ALPHA * ((error - old_error) + old_error_dot);
-    error_hat += error;
 
-    float omega = kP * error + (kD / ALGO_DELTA_TIME) * error_dot + (kI * ALGO_DELTA_TIME) * error_hat;
+    float p = kP * error;
+    float d = (kD / ALGO_DELTA_TIME) * error_dot;
+    float omega = p + d;
+
+    /**
+     * @brief Use integral part only if the error is small.
+     */
+    if (fabsf(error) < INTEGRAL_ACTIVATION_THRESHOLD)
+    {
+        error_hat += error;
+        /**
+         * @brief Clamp the integral term.
+         */
+        if (fabs(error_hat) > INTEGRAL_BOUND)
+        {
+            error_hat = copysignf(INTEGRAL_BOUND, error_hat);
+        }
+
+        float i = (kI * ALGO_DELTA_TIME) * error_hat;
+        omega += i;
+    }
+    else
+    {
+        error_hat = 0;
+    }
 
     ESP_LOGI(TAG, "error: %.2f, error_hat: %.2f, error_dot: %.2f", error, error_hat, error_dot);
     /**
