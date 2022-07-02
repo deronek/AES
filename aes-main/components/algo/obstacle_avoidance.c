@@ -96,6 +96,7 @@ static int most_dangerous_sector = -1;
 static int most_dangerous_sector_measurement = -1;
 static int last_most_dangerous_sector = -1;
 static int last_most_dangerous_sector_measurement = -1;
+static int obstacle_disappeared_ticks = 0;
 
 /**
  * @todo Fix type
@@ -479,6 +480,7 @@ void calculate_most_dangerous_sector()
          */
         ESP_LOGI(TAG, "Follow wall change direction");
         most_dangerous_sector = most_dangerous_sector_measurement;
+        obstacle_disappeared_ticks++;
         algo_obstacle_avoidance_state = OA_BEHAVIOUR_NONE;
         follow_wall_change_direction_request = false;
     }
