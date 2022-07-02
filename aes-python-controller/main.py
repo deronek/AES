@@ -110,11 +110,11 @@ class AESController:
             self.avoid_obstacle_angle = algo.avoid_obstacle_angle
             self.pos_x = algo.pos_x
             self.pos_y = algo.pos_y
-            print(self.pos_x, self.pos_y)
-        # else:
-        #     self.goal_heading = None
-        #     self.follow_wall_heading = None
-        #     self.avoid_obstacle_angle = None
+            # print(self.pos_x, self.pos_y)
+        else:
+            self.goal_heading = None
+            self.follow_wall_heading = None
+            self.avoid_obstacle_angle = None
         if self.ble.hc_sr04.available:
             hc_sr04 = await self.ble.hc_sr04.get_data()
             distance = hc_sr04.distance

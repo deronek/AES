@@ -173,7 +173,11 @@ class BLE:
         logger = logging.getLogger(self.__class__.__name__)
         logging_handler = logging.FileHandler('ble.log')
         logger.addHandler(logging_handler)
+        logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s %(message)s')
+        logging_handler.setFormatter(formatter)
         self.logger = logger
+        self.logger.info('aes-python-controller started')
 
         self.client = BleakClient(ADDRESS)
         self.tx_queue = asyncio.Queue()
@@ -218,6 +222,7 @@ class BLE:
         try:
             # print('packet')
             packet = BLE.BlePacket(data)
+            self.logger.info(str([hex(i) for i in list(data)]))
             await self.save_packet(packet)
             self.timestamp = packet.timestamp
         except KeyError:

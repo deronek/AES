@@ -12,6 +12,8 @@ SIZE = 2000, 2000
 
 RADAR_RADIUS = 500
 
+MAX_DISTANCE = 1500000
+
 START_POINT_LINES = pygame.Vector2(RADAR_RADIUS, RADAR_RADIUS)
 END_POINT_VECTOR = pygame.Vector2(0, -RADAR_RADIUS)
 
@@ -104,9 +106,9 @@ def draw_radar(surface: pygame.Surface, distance):
         distance.reverse()
         for angle in range(len(ANGLES_MARKERS)):
             d = distance[angle]
-            if d == 0:
+            if d == 0 or d > MAX_DISTANCE:
                 continue
-            d /= 2000000
+            d /= MAX_DISTANCE
             d = max(min(d, 1), 0)
             d = 1 - d
             RADAR_MARKERS.add(surface, ANGLES_MARKERS[angle], d)
