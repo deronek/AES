@@ -2,6 +2,7 @@
 #include "position.h"
 #include "photo_encoder.h"
 #include "reflectance.h"
+#include "motor.h"
 
 #include "driver/gpio.h"
 #include "freertos/task.h"
@@ -44,6 +45,7 @@ static void app_manager_create_state_send_task();
 static void app_manager_create_sensor_tasks();
 static void app_manager_create_main_task();
 static void app_manager_create_algo_task();
+static void app_manager_run_tc();
 
 static TASK app_manager_state_send();
 
@@ -80,6 +82,11 @@ TASK app_manager_init()
     {
         abort();
     }
+
+    /**
+     * @brief Run runtime test cases.
+     */
+    app_manager_run_tc();
 
     // estabilish communication with user here
     app_manager_state = APP_MANAGER_READY;
@@ -196,7 +203,7 @@ void app_manager_create_sensor_tasks()
         NULL,
         4,
         &app_manager_reflectance_task_handle,
-        1);
+        0);
 }
 
 void app_manager_create_main_task()
@@ -424,18 +431,7 @@ void app_manager_notify_main(ble_task_id_type source, app_manager_event_id_type 
     }
 }
 
-// void app_manager_algo_task_notify(app_manager_task_flag_type task_flag)
-// {
-// if (algo_running)
-// {
-//     app_manager_task_notify(app_manager_algo_task_handle, task_flag);
-// }
-// }
-
-// void app_manager_ble_task_notify(app_manager_task_flag_type task_flag)
-// {
-// if (ble_is_connected())
-// {
-//     app_manager_task_notify(app_manager_ble_main_task_handle, task_flag);
-// }
-// }
+void app_manager_run_tc()
+{
+    motor_run_tc();
+}

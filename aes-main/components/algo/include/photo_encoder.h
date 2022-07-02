@@ -35,11 +35,11 @@
 #define DISTANCE_STRIPE_M (DISTANCE_STRIPE_UM / 1000000.0)
 
 // enums
-typedef enum photo_encoder_event_type_tag
+typedef enum photo_encoder_event_wheel_type_tag
 {
     PHOTO_ENCODER_L,
     PHOTO_ENCODER_R,
-} photo_encoder_event_type;
+} photo_encoder_event_wheel_type;
 
 // structs
 typedef struct photo_encoder_position_type_tag
@@ -47,6 +47,13 @@ typedef struct photo_encoder_position_type_tag
     float x;
     float y;
 } photo_encoder_position_type;
+
+typedef struct photo_encoder_event_type_tag
+{
+    photo_encoder_event_wheel_type wheel;
+    float heading;
+    int wheel_direction;
+} photo_encoder_event_type;
 
 // global variables
 extern QueueHandle_t photo_encoder_event_queue;

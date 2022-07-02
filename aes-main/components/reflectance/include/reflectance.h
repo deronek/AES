@@ -26,12 +26,12 @@ typedef struct reflectance_request_avoidance_type_tag
 
 // global variables
 extern reflectance_request_avoidance_type reflectance_request_avoidance;
+bool reflectance_measurement_enabled;
 
 // function declarations
 
 void reflectance_init();
 TASK reflectance_main();
-void reflectance_clear_left_request();
-void reflectance_clear_right_request();
+void reflectance_reset();
 
 #endif

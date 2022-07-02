@@ -76,15 +76,25 @@ uint8_t hc_sr04_echo_pins[NUMBER_OF_ECHO_PINS] = {
  * This should be equal to distance of the sensor from the vehicle "bubble".
  * Units are micrometers.
  */
+// uint32_t hc_sr04_distance_offset[NUMBER_OF_HC_SR04_SENSORS] = {
+//     45000,
+//     45000,
+//     10000,
+//     10000,
+//     10000,
+//     10000,
+//     45000,
+//     45000};
+
 uint32_t hc_sr04_distance_offset[NUMBER_OF_HC_SR04_SENSORS] = {
-    45000,
-    45000,
     10000,
     10000,
     10000,
     10000,
-    45000,
-    45000};
+    10000,
+    10000,
+    10000,
+    10000};
 
 /**
  * @brief Mapping of sensor indexes (starting from the left).
@@ -178,7 +188,7 @@ void hc_sr04_init()
         // rmt_rx.rx_config.idle_threshold = rmt_item32_tIMEOUT_US / 10 * (RMT_TICK_10_US);
         rmt_rx.rx_config.idle_threshold = 9280; // 2 m distance
         rmt_config(&rmt_rx);
-        rmt_driver_install(rmt_rx.channel, 1000, 0);
+        rmt_driver_install(rmt_rx.channel, 2000, 0);
 
         rmt_get_ringbuf_handle(i, &(hc_sr04_rb_handles[i]));
 
@@ -204,9 +214,9 @@ TASK hc_sr04_measure()
     {
         int val;
 
-        vTaskDelay(MEASUREMENT_DELAY_TIME);
         for (int trig = 0; trig < NUMBER_OF_TRIG_PINS; ++trig)
         {
+            vTaskDelay(MEASUREMENT_DELAY_TIME);
             // ESP_LOGI(TAG, "Trig %d", trig);
             /**
              * @brief We won't use TX channel of RMT, because it only
@@ -306,10 +316,10 @@ TASK hc_sr04_measure()
                  * @brief If measured distance is lower than min threshold,
                  * it is probably a glitch and should be ignored.
                  */
-                if (distance < DISTANCE_MIN)
-                {
-                    distance = DISTANCE_MAX;
-                }
+                // if (distance < DISTANCE_MIN)
+                // {
+                //     distance = DISTANCE_MAX;
+                // }
 
                 /**
                  * @brief Correct sensor offset based on mount position.
@@ -331,7 +341,7 @@ TASK hc_sr04_measure()
         // ESP_LOGI(TAG, "Sending data to queue");
         // ESP_LOGI(TAG, "%u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1]);
         // ESP_LOGI(TAG, "%u %u %u %u %u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3],
-        //          hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
+        //  hc_sr04_data.distance[4], hc_sr04_data.distance[5], hc_sr04_data.distance[6], hc_sr04_data.distance[7]);
 
         // ESP_LOGI(TAG, "%u %u %u %u", hc_sr04_data.distance[0], hc_sr04_data.distance[1], hc_sr04_data.distance[2], hc_sr04_data.distance[3]);
 

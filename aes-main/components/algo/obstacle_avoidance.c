@@ -2,6 +2,7 @@
 
 #include "data_receive.h"
 
+#include "algo.h"
 #include "hc_sr04.h"
 #include "heading_imu.h"
 #include "goal_heading.h"
@@ -25,13 +26,16 @@
 // #define DANGER_LEVEL_SAFE_THRESHOLD (3.0)
 // #define DANGER_LEVEL_DECREMENT_PER_TICK (0.2)
 
-#define DISTANCE_AVOID_THRESHOLD (200000)
-#define DISTANCE_SAFE_THRESHOLD (550000)
+#define DISTANCE_AVOID_THRESHOLD (150000)
+
+#define DISTANCE_FOLLOW_WALL_ENTER_THRESHOLD (520000)
+#define DISTANCE_FOLLOW_WALL_LEAVE_THRESHOLD (550000)
+// #define DISTANCE_SAFE_THRESHOLD (560000)
 
 // #define SECTOR_NOT_FOUND (UINT8_MAX)
 
 // fuzzy input boundaries
-// #define FUZZY_INPUT_BOUNDARY_NEAR_LOW 10000
+// #define FUZZY_INPUT_BOUNDARY_NEAR_LOW 10000x
 // #define FUZZY_INPUT_BOUNDARY_NEAR_HIGH 20000
 // #define FUZZY_INPUT_BOUNDARY_FAR_LOW 40000
 // #define FUZZY_INPUT_BOUNDARY_FAR_HIGH 60000
@@ -104,6 +108,7 @@ static float angle_to_obstacle;
 static float follow_wall_cc_angle;
 static float follow_wall_ccw_angle;
 static float obstacle_avoidance_angle;
+static bool follow_wall_change_direction_request;
 
 // local function declarations
 // static float fuzzy_input_near(uint32_t distance);
@@ -125,6 +130,7 @@ static bool should_exit_follow_wall_behaviour();
 static bool should_enter_follow_wall_behaviour();
 static bool should_enter_avoid_obstacle_behaviour();
 static bool should_exit_avoid_obstacle_behaviour();
+static bool are_sectors_near(int sector1, int sector2);
 
 static float get_angle_to_obstacle_from_sector(int sector);
 static float get_avoidance_angle_from_angle(float angle_to_obstacle);
@@ -198,8 +204,10 @@ void obstacle_avoidance_calculate()
         if (should_enter_avoid_obstacle_behaviour())
         {
             algo_obstacle_avoidance_state = OA_BEHAVIOUR_AVOID_OBSTACLE;
+            algo_follow_wall_angle = INFINITY;
         }
-        if (should_exit_follow_wall_behaviour())
+        else if (should_exit_follow_wall_behaviour())
+        // if (should_exit_follow_wall_behaviour())
         {
             algo_obstacle_avoidance_state = OA_BEHAVIOUR_NONE;
             algo_follow_wall_angle = INFINITY;
@@ -215,6 +223,11 @@ void obstacle_avoidance_calculate()
             algo_avoid_obstacle_angle = INFINITY;
         }
     }
+
+    /**
+     * @brief Leave follow the wall in 3/4 way
+     *
+     */
 
     switch (algo_obstacle_avoidance_state)
     {
@@ -232,7 +245,7 @@ void obstacle_avoidance_calculate()
         algo_follow_wall_angle = follow_wall_cc_angle;
         distance_to_goal = goal_heading_distance_to_goal();
         follow_wall_ticks++;
-        ESP_LOGI(TAG, "Avoiding obstacle at angle %.2f clockwise, heading to %.2f", angle_to_obstacle * RAD_TO_DEG, algo_follow_wall_angle * RAD_TO_DEG);
+        ESP_LOGI(TAG, "Following wall at angle %.2f clockwise, heading to %.2f", angle_to_obstacle * RAD_TO_DEG, algo_follow_wall_angle * RAD_TO_DEG);
         break;
     case OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE:
         /**
@@ -261,7 +274,8 @@ void obstacle_avoidance_calculate()
             }
         }
         angle_sum /= angle_sum_number;
-        algo_avoid_obstacle_angle = get_avoidance_angle_from_angle(angle_sum_number);
+        algo_avoid_obstacle_angle = get_avoidance_angle_from_angle(angle_sum);
+        ESP_LOGW(TAG, "Avoiding obstacle at weighted angle %.2f", angle_sum * RAD_TO_DEG);
     }
     }
 }
@@ -271,15 +285,15 @@ obstacle_avoidance_state_type calculate_follow_wall_behaviour()
     calculate_follow_wall_cc_angle();
     calculate_follow_wall_ccw_angle();
 
-    if (most_dangerous_sector < 2)
-    {
-        return OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE;
-    }
+    // if (most_dangerous_sector < 2)
+    // {
+    //     return OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE;
+    // }
 
-    if (most_dangerous_sector > 5)
-    {
-        return OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE;
-    }
+    // if (most_dangerous_sector > 5)
+    // {
+    //     return OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE;
+    // }
 
     /**
      * @brief If clockwise direction is closer to the desired heading, choose it.
@@ -297,22 +311,26 @@ obstacle_avoidance_state_type calculate_follow_wall_behaviour()
 
 void obstacle_avoidance_force_cw()
 {
+    ESP_LOGW(TAG, "Forcing clockwise follow the wall");
     algo_obstacle_avoidance_state = OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE;
 }
 
 void obstacle_avoidance_force_ccw()
 {
+    ESP_LOGW(TAG, "Forcing counter-clockwise follow the wall");
     algo_obstacle_avoidance_state = OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE;
 }
 
 bool should_enter_follow_wall_behaviour()
 {
-    return (most_dangerous_sector != -1);
+    return (most_dangerous_sector != -1 &&
+            algo_hc_sr04_data.distance[most_dangerous_sector] < DISTANCE_FOLLOW_WALL_ENTER_THRESHOLD);
 }
 
 bool should_exit_follow_wall_behaviour()
 {
-    float new_distance_to_goal = goal_heading_distance_to_goal();
+    // float new_distance_to_goal = goal_heading_distance_to_goal();
+    // float new_distance_to_goal = goal_heading_distance_to_goal();
     /**
      * @brief Exit follow the wall behaviour when:
      * - area around is safe
@@ -320,11 +338,18 @@ bool should_exit_follow_wall_behaviour()
      * - we made progress to goal (distance is now lower)
      * - obstacle is opposite of goal heading from our perspective
      */
-    if ((most_dangerous_sector == -1 ||
-         ((new_distance_to_goal < distance_to_goal) &&
-          (fabsf(algo_goal_heading - obstacle_avoidance_angle) < (M_PI / 2)))) &&
-        follow_wall_ticks > 3 &&
-        obstacle_disappeared_ticks > 3)
+    // if ((most_dangerous_sector == -1 ||
+    //      ((new_distance_to_goal < distance_to_goal) &&
+    //       (fabsf(algo_goal_heading - obstacle_avoidance_angle) < (M_PI / 2)))) &&
+    //     follow_wall_ticks > 3)
+    // {
+    //     return true;
+    // }
+    // return false;
+
+    if ((most_dangerous_sector == -1 || algo_hc_sr04_data.distance[most_dangerous_sector] > DISTANCE_FOLLOW_WALL_LEAVE_THRESHOLD ||
+         fabsf(algo_goal_heading - obstacle_avoidance_angle) < (M_PI / 2)) &&
+        follow_wall_ticks > 3)
     {
         return true;
     }
@@ -394,12 +419,15 @@ void calculate_most_dangerous_sector()
     uint32_t lowest_distance = UINT32_MAX;
     for (int i = 0; i < NUMBER_OF_HC_SR04_SENSORS; ++i)
     {
-        if ((algo_hc_sr04_data.distance[i] < DISTANCE_SAFE_THRESHOLD) && (algo_hc_sr04_data.distance[i] < lowest_distance))
+        if ((algo_hc_sr04_data.distance[i] < DISTANCE_FOLLOW_WALL_ENTER_THRESHOLD) &&
+            (algo_hc_sr04_data.distance[i] < lowest_distance) &&
+            (algo_hc_sr04_data.distance[i] > 2000))
         {
             lowest_distance = algo_hc_sr04_data.distance[i];
             most_dangerous_sector_measurement = i;
         }
     }
+    ESP_LOGI(TAG, "Most dangerous sector measurement: %d", most_dangerous_sector_measurement);
 
     if ((most_dangerous_sector_measurement != -1) && (last_most_dangerous_sector_measurement == -1))
     {
@@ -411,35 +439,61 @@ void calculate_most_dangerous_sector()
          */
         ESP_LOGI(TAG, "Sector %d dangerous candidate", most_dangerous_sector_measurement);
         most_dangerous_sector = -1;
+        follow_wall_change_direction_request = false;
     }
 
-    else if ((most_dangerous_sector_measurement == -1) && (last_most_dangerous_sector_measurement != -1))
+    // else if ((most_dangerous_sector_measurement == -1) && (last_most_dangerous_sector_measurement != -1))
+    // {
+    //     /**
+    //      * @brief We found this sector dangerous last time, now area is safe.
+    //      * Keep previous value for this iteration only.
+    //      * If area will still be safe in the next iteration, then we consider it safe.
+    //      * This will help one-off measurement glitches from the sensors.
+    //      */
+    //     ESP_LOGI(TAG, "Sector safe request");
+    //     most_dangerous_sector = last_most_dangerous_sector_measurement;
+    //     follow_wall_change_direction_request = false;
+    // }
+    else if (are_sectors_near(most_dangerous_sector_measurement, last_most_dangerous_sector))
     {
         /**
-         * @brief We found this sector dangerous last time, now area is safe.
-         * Keep previous value for this iteration only.
-         * If area will still be safe in the next iteration, then we consider it safe.
-         * This will help one-off measurement glitches from the sensors.
+         * @brief Close sector is still most dangerous, we do not need to do anything.
          */
-        ESP_LOGI(TAG, "Sector safe request");
-        most_dangerous_sector = last_most_dangerous_sector_measurement;
-        obstacle_disappeared_ticks = 0;
-    }
-    else if ((abs(most_dangerous_sector_measurement - last_most_dangerous_sector_measurement) < 3))
-    {
         ESP_LOGI(TAG, "Keeping same follow wall direction at sector %d", most_dangerous_sector_measurement);
         most_dangerous_sector = most_dangerous_sector_measurement;
+        follow_wall_change_direction_request = false;
     }
-    else
+    else if (!are_sectors_near(most_dangerous_sector_measurement, last_most_dangerous_sector_measurement))
     {
         /**
-         * @todo Consider switching directions of the follow angle behaviour.
+         * @brief We have another sector candidate far away, keep the old one
+         * for now.
          */
-        // ESP_LOGI(TAG, "Requesting recalculation of follow wall direction");
+        ESP_LOGI(TAG, "Follow wall change direction request");
+        most_dangerous_sector = last_most_dangerous_sector;
+        follow_wall_change_direction_request = true;
+    }
+    else if (follow_wall_change_direction_request && are_sectors_near(most_dangerous_sector_measurement, last_most_dangerous_sector_measurement))
+    {
+        /**
+         * @brief Switch the sides now.
+         */
+        ESP_LOGI(TAG, "Follow wall change direction");
         most_dangerous_sector = most_dangerous_sector_measurement;
         obstacle_disappeared_ticks++;
         algo_obstacle_avoidance_state = OA_BEHAVIOUR_NONE;
+        follow_wall_change_direction_request = false;
     }
+    else
+    {
+        most_dangerous_sector = most_dangerous_sector_measurement;
+        follow_wall_change_direction_request = false;
+    }
+}
+
+bool are_sectors_near(int sector1, int sector2)
+{
+    return abs(sector1 - sector2) < 4;
 }
 
 // void check_left_sector(int sector_to_check, int *safe_sector)

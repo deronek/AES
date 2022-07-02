@@ -13,6 +13,8 @@
 #include "border_recoil.h"
 #include "hall.h"
 
+#include "reflectance.h"
+
 // constants
 
 // #define COMP_FILTER_ALPHA 0.5
@@ -26,6 +28,8 @@ TaskHandle_t algo_position_process_task_handle,
     algo_position_photo_encoder_process_task_handle,
     algo_position_accel_process_task_handle;
 QueueHandle_t algo_ble_data_queue;
+
+uint32_t algo_tick_counter = 0;
 
 /**b
  * @todo Refactor this with getter
@@ -82,14 +86,14 @@ void algo_init()
 
 void algo_create_tasks()
 {
-    task_utils_create_task(
-        position_accel_process,
-        "position_accel_process",
-        4096,
-        NULL,
-        6,
-        &algo_position_accel_process_task_handle,
-        1);
+    // task_utils_create_task(
+    //     position_accel_process,
+    //     "position_accel_process",
+    //     4096,
+    //     NULL,
+    //     6,
+    //     &algo_position_accel_process_task_handle,
+    //     1);
 
     task_utils_create_task(
         position_photo_encoder_process,
@@ -130,6 +134,9 @@ static void algo_prepare()
      * @brief Photo encoder
      */
     photo_encoder_enable_isr();
+    reflectance_reset();
+
+    algo_tick_counter = 0;
 }
 
 TASK algo_main()
@@ -169,6 +176,7 @@ TASK algo_main()
         }
 
         algo_ble_send();
+        algo_tick_counter++;
         /**
          * @brief We want to run algo calculations at least with ALGO_FREQUENCY.
          * If we do not meet that time, signal a warning.
@@ -204,8 +212,8 @@ void algo_cleanup()
      */
     task_utils_request_delete_task(&algo_position_process_task_handle,
                                    position_process_request_stop);
-    task_utils_request_delete_task(&algo_position_accel_process_task_handle,
-                                   position_accel_process_request_stop);
+    // task_utils_request_delete_task(&algo_position_accel_process_task_handle,
+    //    position_accel_process_request_stop);
     task_utils_request_delete_task(&algo_position_photo_encoder_process_task_handle,
                                    position_photo_encoder_process_request_stop);
     /**
@@ -226,6 +234,9 @@ void algo_cleanup()
     final_heading_reset();
     obstacle_avoidance_reset();
     hall_reset();
+    border_recoil_reset();
+
+    reflectance_reset();
 
     algo_stop_requested = false;
 
@@ -250,9 +261,18 @@ void algo_ble_send()
 
 void algo_run()
 {
+    /**
+     * @brief Enable reflectance measurement only after 50 ticks (~5s).
+     */
+    if (algo_tick_counter == 50)
+    {
+        reflectance_measurement_enabled = true;
+    }
+
     hall_measure();
     if (algo_hall_detected)
     {
+        ESP_LOGI(TAG, "Hall sensor triggered, stopping");
         algo_stop_requested = true;
         return;
     }

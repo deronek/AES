@@ -29,7 +29,7 @@ static const char *TAG = "mpu9255";
 static const unsigned char SENSORS = INV_XYZ_GYRO | INV_XYZ_ACCEL | INV_XYZ_COMPASS;
 
 // constants
-#define MPU_SAMPLE_RATE 200
+#define MPU_SAMPLE_RATE 20
 #define TASK_TICK_PERIOD TASK_HZ_TO_TICKS(MPU_SAMPLE_RATE)
 #define DMP_FLASH_TRIES (5)
 
@@ -39,7 +39,7 @@ static const unsigned char SENSORS = INV_XYZ_GYRO | INV_XYZ_ACCEL | INV_XYZ_COMP
  */
 #define TASK_MAXIMUM_TICK_PERIOD TASK_TICK_PERIOD + 2
 
-#define CALIBRATION_DATA_POINTS_EXP 8
+#define CALIBRATION_DATA_POINTS_EXP 6
 #define CALIBRATION_DATA_POINTS (1 << CALIBRATION_DATA_POINTS_EXP)
 
 // function declarations

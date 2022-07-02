@@ -1,6 +1,7 @@
 #include "final_heading.h"
 
 #include "obstacle_avoidance.h"
+#include "border_recoil.h"
 #include "goal_heading.h"
 
 #include <math.h>
@@ -31,6 +32,22 @@ void final_heading_calculate()
     case OA_BEHAVIOUR_NONE:
         algo_final_heading_behaviour_state = BEHAVIOUR_DRIVE_TO_GOAL;
         algo_final_heading = algo_goal_heading;
+        /**
+         * @brief If border was detected, modify final heading
+         * by 120 degrees max (decaying with time).
+         */
+        if (border_recoil_state == BORDER_RECOIL_DIRECTION_LEFT)
+        {
+            float coefficient = border_recoil_get_coefficient_scaled();
+            ESP_LOGW(TAG, "Modifying final heading with coefficient %.2f", coefficient);
+            algo_final_heading += (M_PI / 2.0) * coefficient;
+        }
+        else if (border_recoil_state == BORDER_RECOIL_DIRECTION_RIGHT)
+        {
+            float coefficient = border_recoil_get_coefficient_scaled();
+            ESP_LOGW(TAG, "Modifying final heading with coefficient %.2f", coefficient);
+            algo_final_heading -= (M_PI / 2.0) * coefficient;
+        }
         break;
     case OA_BEHAVIOUR_FOLLOW_WALL_CLOCKWISE:
     case OA_BEHAVIOUR_FOLLOW_WALL_COUNTERCLOCKWISE:

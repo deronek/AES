@@ -28,7 +28,7 @@ static const char *TAG = "algo-goal-heading";
  * @todo Pass start position to position module.
  * ---------------------------------------
  */
-static float xs = 0.915;
+static float xs = 0.455;
 static float ys = 0;
 
 /**
@@ -37,8 +37,9 @@ static float ys = 0;
 // static float xf = 3.96;
 // static float yf = 3.66;
 
-static float xf = 5.185;
-static float yf = 3.05;
+
+static float xf = 2.595;
+static float yf = 5.8;
 
 /**
  * @brief (x_hat, y_hat) - length and with of the play area.

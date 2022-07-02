@@ -32,7 +32,16 @@ typedef struct motor_control_input_data_type_tag
     float desired_heading;
 } motor_control_input_data_type;
 
+typedef struct motor_control_output_data_type_tag
+{
+    uint8_t dir1;
+    uint8_t dir2;
+    float pwm1;
+    float pwm2;
+} motor_control_output_data_type;
+
 // global variables
+extern motor_control_output_data_type motor_control_output_data;
 
 // data queue, will only be read by queue peek
 
@@ -42,5 +51,6 @@ void motor_init();
 void motor_start(float goal_heading);
 void motor_tick();
 void motor_reset();
+void motor_run_tc();
 
 #endif
