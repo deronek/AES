@@ -125,10 +125,10 @@
  * coefficients of the motor PID regulator.
  * @todo Adjust these values.
  */
-#define kP (5.0)
+#define kP (1.0)
 #define kD (0.3)
 // #define kD (0.5)
-#define kI (0.02)
+#define kI (0.00)
 // #define kI (0.00)
 
 /**
@@ -138,27 +138,12 @@
 #define ERROR_DOT_ALPHA (0.7)
 
 // structs
-/**
- * @brief Struct to hold input data for motor control.
- *
- * Examples:
- * - forward movement:
- *      - angle = 0.0f
- * -
- */
 
-typedef struct motor_control_output_data_type_tag
-{
-    uint8_t dir1;
-    uint8_t dir2;
-    float pwm1;
-    float pwm2;
-} motor_control_output_data_type;
+// global variables
+motor_control_output_data_type motor_control_output_data;
 
 // local variables
 static const char *TAG = "motor";
-static motor_control_input_data_type motor_control_input_data;
-static motor_control_output_data_type motor_control_output_data;
 
 /**
  * @brief Variable below should be initialized to desired heading

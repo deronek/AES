@@ -239,12 +239,15 @@ TASK position_photo_encoder_process()
         float delta_center = DISTANCE_STRIPE_M / 2.0;
 
         /**
-         * @brief Read current heading. This read is atomic.
-         * @todo It might be possible to use photo encoder data
-         * to also get heading change. Maybe somehow use this
-         * to make the position measurement more accurate.
+         * @brief Wheel is turning backwards,
+         * use negative distance.
          */
-        volatile float heading = algo_current_heading;
+        if (event.wheel_direction)
+        {
+            delta_center = -delta_center;
+        }
+
+        float heading = event.heading;
 
         /**
          * @todo Try to use sincosf instead here, might be faster.

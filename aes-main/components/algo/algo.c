@@ -277,7 +277,7 @@ void algo_run()
         return;
     }
 
-    border_recoil_calculate();
+    // border_recoil_calculate();
 
     heading_imu_calculate();
     goal_heading_calculate();

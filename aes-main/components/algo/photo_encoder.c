@@ -2,6 +2,9 @@
 
 // #include <math.h>
 
+#include "heading_imu.h"
+#include "motor.h"
+
 // #include "esp_attr.h"
 // #include "app_manager.h"
 #include "esp_log.h"
@@ -46,20 +49,23 @@ static void photo_encoder_l_isr(void *arg)
 {
     BaseType_t retval;
     BaseType_t higher_task_woken = pdFALSE;
-    int level = gpio_get_level(PHOTO_ENCODER_GPIO_PIN_L);
-    photo_encoder_event_type event_type;
 
-    // if (level)
-    // {
-    //     event_type = PHOTO_ENCODER_L_WIDTH;
-    // }
-    // else
-    // {
-    //     event_type = PHOTO_ENCODER_L_DISTANCE;
-    // }
-    event_type = PHOTO_ENCODER_L;
+    photo_encoder_event_type event;
+    event.wheel = PHOTO_ENCODER_L;
 
-    retval = xQueueSendFromISR(photo_encoder_event_queue, &event_type, &higher_task_woken);
+    /**
+     * @brief Read current heading. This read is atomic.
+     * @todo It might be possible to use photo encoder data
+     * to also get heading change. Maybe somehow use this
+     * to make the position measurement more accurate.
+     */
+    volatile float heading = algo_current_heading;
+    event.heading = heading;
+
+    volatile int wheel_direction = motor_control_output_data.dir2;
+    event.wheel_direction = wheel_direction;
+
+    retval = xQueueSendFromISR(photo_encoder_event_queue, &event, &higher_task_woken);
     if (retval == errQUEUE_FULL)
     {
         ESP_DRAM_LOGE(TAG, "photo_encoder_event_queue full, tick lost");
@@ -72,20 +78,23 @@ static void photo_encoder_r_isr(void *arg)
 {
     BaseType_t retval;
     BaseType_t higher_task_woken = pdFALSE;
-    int level = gpio_get_level(PHOTO_ENCODER_GPIO_PIN_R);
-    photo_encoder_event_type event_type;
 
-    // if (level)
-    // {
-    //     event_type = PHOTO_ENCODER_R_WIDTH;
-    // }
-    // else
-    // {
-    //     event_type = PHOTO_ENCODER_R_DISTANCE;
-    // }
-    event_type = PHOTO_ENCODER_R;
+    photo_encoder_event_type event;
+    event.wheel = PHOTO_ENCODER_R;
 
-    retval = xQueueSendFromISR(photo_encoder_event_queue, &event_type, &higher_task_woken);
+    /**
+     * @brief Read current heading. This read is atomic.
+     * @todo It might be possible to use photo encoder data
+     * to also get heading change. Maybe somehow use this
+     * to make the position measurement more accurate.
+     */
+    volatile float heading = algo_current_heading;
+    event.heading = heading;
+
+    volatile int wheel_direction = motor_control_output_data.dir1;
+    event.wheel_direction = wheel_direction;
+
+    retval = xQueueSendFromISR(photo_encoder_event_queue, &event, &higher_task_woken);
     if (retval == errQUEUE_FULL)
     {
         ESP_DRAM_LOGE(TAG, "photo_encoder_event_queue full, tick lost");
@@ -103,7 +112,7 @@ void photo_encoder_init()
     /**
      * @brief Initialize notify queue, handled in position_photo_encoder_process.
      */
-    photo_encoder_event_queue = xQueueCreate(10, sizeof(photo_encoder_event_type));
+    photo_encoder_event_queue = xQueueCreate(10, sizeof(photo_encoder_event_wheel_type));
     if (photo_encoder_event_queue == NULL)
     {
         abort();

@@ -78,9 +78,9 @@ TASK reflectance_main()
     for (;;)
     {
         reflectance_measure();
-        ESP_LOGI(TAG, "%d %d",
-                 sensor_voltage[0],
-                 sensor_voltage[1]);
+        // ESP_LOGI(TAG, "%d %d",
+        //  sensor_voltage[0],
+        //  sensor_voltage[1]);
 
         if (reflectance_measurement_enabled)
         {
