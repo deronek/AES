@@ -5,6 +5,7 @@
 #include "mpu9255.h"
 #include "hp_iir_filter.h"
 #include "lp_fir_filter.h"
+#include "goal_heading.h"
 
 #include "app_manager.h"
 
@@ -99,7 +100,10 @@ void position_init()
 TASK position_process()
 {
     int retval;
-    algo_position_type position = {0};
+    algo_position_type position = {
+        .x = X_START,
+        .y = Y_START,
+    };
 
     /**
      * @brief Put (0, 0) position into algo_position_queue
@@ -175,7 +179,10 @@ TASK position_photo_encoder_process()
 {
     BaseType_t retval;
 
-    photo_encoder_position_type pos = {0};
+    photo_encoder_position_type pos = {
+        .x = X_START,
+        .y = Y_START,
+    };
     /**
      * @brief Put (0, 0) position into photo_encoder_position_queue
      * so that the data can be used in the algorithm.

@@ -15,49 +15,6 @@ float algo_goal_heading;
 // local variables
 static const char *TAG = "algo-goal-heading";
 
-/**
- * @brief Refactor all of below data as parameters (maybe passed via BLE).
- * Assume the (0, 0) point is the bottom right point and coordinates
- * can be only positive.
- */
-
-/**
- * @brief (xs, ys) - coordinates of the start point of the vehicle.
- *
- * ---------------------------------------
- * @todo Pass start position to position module.
- * ---------------------------------------
- */
-static float xs = 0.455;
-static float ys = 0;
-
-/**
- * @brief (xf, yf) - coordinates of the finish point.
- */
-// static float xf = 3.96;
-// static float yf = 3.66;
-
-
-static float xf = 2.595;
-static float yf = 5.8;
-
-/**
- * @brief (x_hat, y_hat) - length and with of the play area.
- */
-
-/**
- * @brief From WIKAMP:
- */
-#define INCH_TO_CM
-// static float x_hat = 3.96;
-// static float y_hat = 6.6;
-
-/**
- * @brief Measured:
- */
-static float x_hat = 3.05;
-static float y_hat = 6.1;
-
 // function definitions
 void goal_heading_init()
 {
@@ -71,16 +28,16 @@ void goal_heading_calculate()
 
 float goal_heading_angle_to_goal()
 {
-    float a = xf - algo_position.x;
-    float b = yf - algo_position.y;
+    float a = X_FINISH - algo_position.x;
+    float b = Y_FINISH - algo_position.y;
 
     return atan2f(a, b);
 }
 
 float goal_heading_distance_to_goal()
 {
-    float delta_x = algo_position.x - xf;
-    float delta_y = algo_position.y - yf;
+    float delta_x = algo_position.x - X_FINISH;
+    float delta_y = algo_position.y - Y_FINISH;
     float distance = sqrtf((delta_x * delta_x + delta_y * delta_y));
 
     return distance;

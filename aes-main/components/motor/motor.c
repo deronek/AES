@@ -93,19 +93,16 @@
 #define RAD_TO_DEG (180.0 / M_PI)
 #define DEG_TO_RAD (M_PI / 180.0)
 
-/**
- * @brief This needs to refactored, because we probably will not
- * use finish heading, but end point.
- */
-#define FINISH_HEADING (30.0 * DEG_TO_RAD)
+// /**
+//  * @brief This needs to refactored, because we probably will not
+//  * use finish heading, but end point.
+//  */
+// #define FINISH_HEADING (30.0 * DEG_TO_RAD)
 
 #define DIR1_GPIO_NUM GPIO_NUM_18
 #define DIR2_GPIO_NUM GPIO_NUM_5
 #define PWM1_GPIO_NUM GPIO_NUM_17
 #define PWM2_GPIO_NUM GPIO_NUM_16
-
-#define RAD_TO_DEG (180.0 / M_PI)
-#define DEG_TO_RAD (M_PI / 180.0)
 
 // /**
 //  * @brief Velocity (in m/s) of the robot moving forward when both

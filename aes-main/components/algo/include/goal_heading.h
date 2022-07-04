@@ -14,6 +14,21 @@
 
 // constants
 
+/**
+ * @brief Refactor all of below data as parameters (maybe passed via BLE).
+ * Assume the (0, 0) point is the bottom right point and coordinates
+ * can be only positive.
+ */
+// border measured manually
+#define X_BORDER (3.05)
+#define Y_BORDER (6.1)
+
+#define X_START (0.455)
+#define Y_START (0.0)
+
+#define X_FINISH (2.595)
+#define Y_FINISH (5.8)
+
 // enums
 
 // structs
