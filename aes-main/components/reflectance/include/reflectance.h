@@ -32,6 +32,7 @@ bool reflectance_measurement_enabled;
 
 void reflectance_init();
 TASK reflectance_main();
+void reflectance_calibrate();
 void reflectance_reset();
 
 #endif

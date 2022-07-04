@@ -117,6 +117,12 @@ void algo_create_tasks()
 static void algo_prepare()
 {
     /**
+     * @brief Refllectance
+     */
+    reflectance_calibrate();
+    reflectance_reset();
+
+    /**
      * @brief MPU9255
      */
     mpu_reset_fifo();
@@ -134,7 +140,6 @@ static void algo_prepare()
      * @brief Photo encoder
      */
     photo_encoder_enable_isr();
-    reflectance_reset();
 
     algo_tick_counter = 0;
 }

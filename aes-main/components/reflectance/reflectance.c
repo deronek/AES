@@ -2,6 +2,8 @@
 #include "driver/adc.h"
 #include "driver/gpio.h"
 
+#include <math.h>
+
 // constants
 
 #define NUMBER_OF_REFLECTANCE_SENSORS (2)
@@ -22,7 +24,10 @@
 // #define REFLECTANCE_THRESHOLD_R (2500)
 
 #define REFLECTANCE_THRESHOLD_DIFFERENCE_L (500)
-#define REFLECTANCE_THRESHOLD_DIFFERENCE_R (600)
+#define REFLECTANCE_THRESHOLD_DIFFERENCE_R (500)
+
+#define CALIBRATION_DATA_POINTS_EXP 5
+#define CALIBRATION_DATA_POINTS (1 << CALIBRATION_DATA_POINTS_EXP)
 
 // structs
 
@@ -32,11 +37,11 @@ bool reflectance_measurement_enabled;
 
 // local variables
 static const char *TAG = "reflectance";
+static int sensor_bias[NUMBER_OF_REFLECTANCE_SENSORS];
 
 /**
  * @brief Sensors, in order: front left, front right, back left, back right.
  */
-static int64_t timer_measurements[NUMBER_OF_REFLECTANCE_SENSORS];
 // static bool sensor_active[NUMBER_OF_REFLECTANCE_SENSORS];
 static int last_sensor_voltage[NUMBER_OF_REFLECTANCE_SENSORS];
 static int sensor_voltage[NUMBER_OF_REFLECTANCE_SENSORS];
@@ -78,9 +83,9 @@ TASK reflectance_main()
     for (;;)
     {
         reflectance_measure();
-        // ESP_LOGI(TAG, "%d %d",
-        //  sensor_voltage[0],
-        //  sensor_voltage[1]);
+        ESP_LOGI(TAG, "%d %d",
+                 sensor_voltage[0],
+                 sensor_voltage[1]);
 
         if (reflectance_measurement_enabled)
         {
@@ -88,6 +93,28 @@ TASK reflectance_main()
         }
 
         vTaskDelay(TASK_TICK_PERIOD);
+    }
+}
+
+void reflectance_calibrate()
+{
+    for (int i = 0; i < NUMBER_OF_REFLECTANCE_SENSORS; ++i)
+    {
+        sensor_bias[i] = 0;
+    }
+
+    for (int i = 0; i < CALIBRATION_DATA_POINTS; ++i)
+    {
+        for (int p = 0; p < NUMBER_OF_REFLECTANCE_SENSORS; ++p)
+        {
+            sensor_bias[p] += adc1_get_raw(reflectance_adc_channels[p]);
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+
+    for (int i = 0; i < NUMBER_OF_REFLECTANCE_SENSORS; ++i)
+    {
+        sensor_bias[i] = (int)roundf((float)sensor_bias[i] / CALIBRATION_DATA_POINTS);
     }
 }
 
@@ -102,6 +129,7 @@ void reflectance_measure()
     {
         last_sensor_voltage[i] = sensor_voltage[i];
         sensor_voltage[i] = adc1_get_raw(reflectance_adc_channels[i]);
+        sensor_voltage[i] -= sensor_bias[i];
 
         // if (sensor_voltage[i] < REFLECTANCE_THRESHOLD)
         // {
