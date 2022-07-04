@@ -55,12 +55,15 @@ static void photo_encoder_l_isr(void *arg)
 
     /**
      * @brief Read current heading. This read is atomic.
+     * Using uint32_t because declaring float in ISR is not supported.
+     * We do not perform any operation on this number, just read.
+     * 
      * @todo It might be possible to use photo encoder data
      * to also get heading change. Maybe somehow use this
      * to make the position measurement more accurate.
      */
-    volatile float heading = algo_current_heading;
-    event.heading = heading;
+    volatile uint32_t heading = algo_current_heading;
+    event.heading = (float)heading;
 
     volatile int wheel_direction = motor_control_output_data.dir2;
     event.wheel_direction = wheel_direction;
@@ -84,12 +87,15 @@ static void photo_encoder_r_isr(void *arg)
 
     /**
      * @brief Read current heading. This read is atomic.
+     * Using uint32_t because declaring float in ISR is not supported.
+     * We do not perform any operation on this number, just read.
+     * 
      * @todo It might be possible to use photo encoder data
      * to also get heading change. Maybe somehow use this
      * to make the position measurement more accurate.
      */
-    volatile float heading = algo_current_heading;
-    event.heading = heading;
+    volatile uint32_t heading = algo_current_heading;
+    event.heading = (float)heading;
 
     volatile int wheel_direction = motor_control_output_data.dir1;
     event.wheel_direction = wheel_direction;
@@ -112,7 +118,7 @@ void photo_encoder_init()
     /**
      * @brief Initialize notify queue, handled in position_photo_encoder_process.
      */
-    photo_encoder_event_queue = xQueueCreate(10, sizeof(photo_encoder_event_wheel_type));
+    photo_encoder_event_queue = xQueueCreate(10, sizeof(photo_encoder_event_type));
     if (photo_encoder_event_queue == NULL)
     {
         abort();
