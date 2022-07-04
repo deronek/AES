@@ -17,20 +17,45 @@
  */
 #define SPEED_MIN (7.0F)
 // #define SPEED_MIN (6.5F)
-#define SPEED_MID (24.0F)
-#define SPEED_MAX (28.0F)
+#define SPEED_MID (23.0F)
+#define SPEED_MAX (24.0F)
 
-#define MOTOR_CORRECTION_L (1.0F)
-#define MOTOR_CORRECTION_R (0.95F)
+/**
+ * @brief Motor correction coefficients
+ * L/R - left/right
+ * F/B - forwards/backwards
+ */
+#define MOTOR_CORRECTION_L_F (1.0F)
+#define MOTOR_CORRECTION_R_F (0.95F)
 
-#define SPEED_MIN_L (SPEED_MIN * MOTOR_CORRECTION_L)
-#define SPEED_MIN_R (SPEED_MIN * MOTOR_CORRECTION_R)
+#define MOTOR_CORRECTION_L_B (0.92F)
+#define MOTOR_CORRECTION_R_B (1.0F)
 
-#define SPEED_MID_L (SPEED_MID * MOTOR_CORRECTION_L)
-#define SPEED_MID_R (SPEED_MID * MOTOR_CORRECTION_R)
+// #define MOTOR_CORRECTION_R (0.95F)
 
-#define SPEED_MAX_L (SPEED_MAX * MOTOR_CORRECTION_L)
-#define SPEED_MAX_R (SPEED_MAX * MOTOR_CORRECTION_R)
+/**
+ * @brief Forwards speed constants.
+ */
+#define SPEED_MIN_L_F (SPEED_MIN * MOTOR_CORRECTION_L_F)
+#define SPEED_MIN_R_F (SPEED_MIN * MOTOR_CORRECTION_R_F)
+
+#define SPEED_MID_L_F (SPEED_MID * MOTOR_CORRECTION_L_F)
+#define SPEED_MID_R_F (SPEED_MID * MOTOR_CORRECTION_R_F)
+
+#define SPEED_MAX_L_F (SPEED_MAX * MOTOR_CORRECTION_L_F)
+#define SPEED_MAX_R_F (SPEED_MAX * MOTOR_CORRECTION_R_F)
+
+/**
+ * @brief Backwards speed constants.
+ */
+#define SPEED_MIN_L_B (SPEED_MIN * MOTOR_CORRECTION_L_B)
+#define SPEED_MIN_R_B (SPEED_MIN * MOTOR_CORRECTION_R_B)
+
+#define SPEED_MID_L_B (SPEED_MID * MOTOR_CORRECTION_L_B)
+#define SPEED_MID_R_B (SPEED_MID * MOTOR_CORRECTION_R_B)
+
+#define SPEED_MAX_L_B (SPEED_MAX * MOTOR_CORRECTION_L_B)
+#define SPEED_MAX_R_B (SPEED_MAX * MOTOR_CORRECTION_R_B)
 
 /**
  * @brief Forward switch threshold.
@@ -38,14 +63,15 @@
  * the vehicle will start moving one of the tracks
  * in the reverse direction.
  */
-#define FST (M_PI / 6.0)
+// #define FST (M_PI / 6.0)
+#define FST (2.0 * M_PI / 6.0)
 
 /**
  * @brief Turn speedup threshold.
  * Creates an interpolation point of angle which
  * will result in maximum speed of both motors in reverse direction.
  */
-#define TST (M_PI / 2.0)
+#define TST (M_PI)
 
 /**
  * @brief Threshold below which integral part
@@ -61,26 +87,26 @@
 /**
  * @brief PWM1 (right motor) linear function coefficients.
  */
-#define PWM1_A1 ((SPEED_MAX_R - SPEED_MIN_R) / (FST - TST))
-#define PWM1_B1 (PWM1_A1 * FST + SPEED_MIN_R)
+#define PWM1_A1 ((SPEED_MAX_R_B - SPEED_MIN_R_B) / (FST - TST))
+#define PWM1_B1 (PWM1_A1 * FST + SPEED_MIN_R_B)
 
-#define PWM1_A2 ((SPEED_MID_R - SPEED_MIN_R) / (FST))
-#define PWM1_B2 (SPEED_MID_R)
+#define PWM1_A2 ((SPEED_MID_R_F - SPEED_MIN_R_F) / (FST))
+#define PWM1_B2 (SPEED_MID_R_F)
 
-#define PWM1_A3 ((SPEED_MAX_R - SPEED_MID_R) / (TST))
-#define PWM1_B3 (SPEED_MID_R)
+#define PWM1_A3 ((SPEED_MAX_R_F - SPEED_MID_R_F) / (TST))
+#define PWM1_B3 (SPEED_MID_R_F)
 
 /**
  * @brief PWM2 (left motor) linear function coefficients.
  */
-#define PWM2_A1 ((SPEED_MID_L - SPEED_MAX_L) / (TST))
-#define PWM2_B1 (SPEED_MID_L)
+#define PWM2_A1 ((SPEED_MID_L_F - SPEED_MAX_L_F) / (TST))
+#define PWM2_B1 (SPEED_MID_L_F)
 
-#define PWM2_A2 ((SPEED_MIN_L - SPEED_MID_L) / (FST))
-#define PWM2_B2 (SPEED_MID_L)
+#define PWM2_A2 ((SPEED_MIN_L_F - SPEED_MID_L_F) / (FST))
+#define PWM2_B2 (SPEED_MID_L_F)
 
-#define PWM2_A3 ((SPEED_MIN_L - SPEED_MAX_L) / (FST - TST))
-#define PWM2_B3 (PWM2_A3 * (-FST) + SPEED_MIN_L)
+#define PWM2_A3 ((SPEED_MIN_L_B - SPEED_MAX_L_B) / (FST - TST))
+#define PWM2_B3 (PWM2_A3 * (-FST) + SPEED_MIN_L_B)
 
 /**
  * @todo Maybe correct speeds on motors each.
@@ -122,10 +148,10 @@
  * coefficients of the motor PID regulator.
  * @todo Adjust these values.
  */
-#define kP (1.0)
-#define kD (0.3)
+#define kP (1.5)
+#define kD (0.2)
 // #define kD (0.5)
-#define kI (0.00)
+#define kI (0.5)
 // #define kI (0.00)
 
 /**
@@ -213,25 +239,19 @@ void compare_float(float received, float expected)
 
 void motor_run_tc()
 {
-    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -181), SPEED_MAX_R);
-    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -180), SPEED_MAX_R);
-    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -91), SPEED_MAX_R);
-    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -90), SPEED_MAX_R);
-    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -30), SPEED_MIN_R);
-    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 0), SPEED_MID_R);
-    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 90), SPEED_MAX_R);
-    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 91), SPEED_MAX_R);
-    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 180), SPEED_MAX_R);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -181), SPEED_MAX_R_B);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -180), SPEED_MAX_R_B);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * -60), SPEED_MIN_R_B);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 0), SPEED_MID_R_F);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 180), SPEED_MAX_R_F);
+    compare_float(motor_calculate_pwm1(DEG_TO_RAD * 181), SPEED_MAX_R_F);
 
-    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -181), SPEED_MAX_L);
-    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -180), SPEED_MAX_L);
-    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -91), SPEED_MAX_L);
-    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -90), SPEED_MAX_L);
-    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 0), SPEED_MID_L);
-    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 30), SPEED_MIN_L);
-    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 90), SPEED_MAX_L);
-    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 91), SPEED_MAX_L);
-    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 180), SPEED_MAX_L);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -181), SPEED_MAX_L_F);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * -180), SPEED_MAX_L_F);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 0), SPEED_MID_L_F);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 60), SPEED_MIN_L_B);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 180), SPEED_MAX_L_B);
+    compare_float(motor_calculate_pwm2(DEG_TO_RAD * 181), SPEED_MAX_L_B);
 }
 
 void motor_tick(motor_control_input_data_type input_data)
@@ -305,6 +325,11 @@ void motor_tick(motor_control_input_data_type input_data)
     motor_control_output_data.dir1 = motor_calculate_dir1(omega);
     motor_control_output_data.dir2 = motor_calculate_dir2(omega);
 
+    // motor_control_output_data.pwm1 = 25.0;
+    // motor_control_output_data.pwm2 = 25.0;
+    // motor_control_output_data.dir1 = 1;
+    // motor_control_output_data.dir2 = 1;
+
     motor_perform_control();
 }
 
@@ -316,7 +341,7 @@ static float motor_calculate_pwm1(float omega)
     float pwm;
     if (omega <= (-TST))
     {
-        pwm = SPEED_MAX_R;
+        pwm = SPEED_MAX_R_B;
     }
     else if ((omega > (-TST)) && (omega < (-FST)))
     {
@@ -332,7 +357,7 @@ static float motor_calculate_pwm1(float omega)
     }
     else // omega >= TST
     {
-        pwm = SPEED_MAX_R;
+        pwm = SPEED_MAX_R_F;
     }
     return pwm;
 }
@@ -345,7 +370,7 @@ static float motor_calculate_pwm2(float omega)
     float pwm;
     if (omega <= (-TST))
     {
-        pwm = SPEED_MAX_L;
+        pwm = SPEED_MAX_L_F;
     }
     else if ((omega > (-TST)) && (omega < 0))
     {
@@ -361,7 +386,7 @@ static float motor_calculate_pwm2(float omega)
     }
     else // omega >= TST
     {
-        pwm = SPEED_MAX_L;
+        pwm = SPEED_MAX_L_B;
     }
     return pwm;
 }
