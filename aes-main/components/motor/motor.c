@@ -15,20 +15,25 @@
  * Minimum vehicle speed should be set as lowest value which do not make motors
  * turn (because of motor/tracks/ground friction).
  */
+// #define SPEED_MIN (7.0F)
+// // #define SPEED_MIN (6.5F)
+// #define SPEED_MID (23.0F)
+// #define SPEED_MAX (24.0F)
+
 #define SPEED_MIN (7.0F)
 // #define SPEED_MIN (6.5F)
-#define SPEED_MID (23.0F)
-#define SPEED_MAX (24.0F)
-
+#define SPEED_MID (25.0F)
+#define SPEED_MAX (28.0F)
 /**
  * @brief Motor correction coefficients
  * L/R - left/right
  * F/B - forwards/backwards
  */
 #define MOTOR_CORRECTION_L_F (1.0F)
-#define MOTOR_CORRECTION_R_F (0.95F)
+#define MOTOR_CORRECTION_R_F (0.885F)
+// #define MOTOR_CORRECTION_R_F (0.815F)
 
-#define MOTOR_CORRECTION_L_B (0.92F)
+#define MOTOR_CORRECTION_L_B (0.885F)
 #define MOTOR_CORRECTION_R_B (1.0F)
 
 // #define MOTOR_CORRECTION_R (0.95F)
@@ -64,7 +69,8 @@
  * in the reverse direction.
  */
 // #define FST (M_PI / 6.0)
-#define FST (2.0 * M_PI / 6.0)
+// #define FST (2.0 * M_PI / 6.0)
+#define FST (M_PI / 4.0)
 
 /**
  * @brief Turn speedup threshold.
@@ -151,7 +157,7 @@
 #define kP (1.5)
 #define kD (0.2)
 // #define kD (0.5)
-#define kI (0.5)
+#define kI (0.8)
 // #define kI (0.00)
 
 /**
@@ -325,8 +331,8 @@ void motor_tick(motor_control_input_data_type input_data)
     motor_control_output_data.dir1 = motor_calculate_dir1(omega);
     motor_control_output_data.dir2 = motor_calculate_dir2(omega);
 
-    // motor_control_output_data.pwm1 = 25.0;
-    // motor_control_output_data.pwm2 = 25.0;
+    // motor_control_output_data.pwm1 = SPEED_MID_R_B;
+    // motor_control_output_data.pwm2 = SPEED_MID_L_B;
     // motor_control_output_data.dir1 = 1;
     // motor_control_output_data.dir2 = 1;
 
@@ -452,4 +458,9 @@ void motor_reset()
     old_error = 0.0;
     old_error_dot = 0.0;
     error_hat = 0.0;
+}
+
+bool motor_is_turning()
+{
+    return motor_control_output_data.dir1 || motor_control_output_data.dir2;
 }
