@@ -67,6 +67,9 @@ class AESController:
     goal_heading: Optional[float]
     follow_wall_heading: Optional[float]
     avoid_obstacle_angle: Optional[float]
+    reflectance_left: bool
+    reflectance_right: bool
+
 
     def __init__(self):
         self.reset_data()
@@ -96,6 +99,8 @@ class AESController:
         self.goal_heading = None
         self.follow_wall_heading = None
         self.avoid_obstacle_angle = None
+        self.reflectance_left = False
+        self.reflectance_right = False
 
     async def draw_window(self):
         self.handle_events()
@@ -122,6 +127,12 @@ class AESController:
         else:
             # distance = random.sample(range(0, 2000000), 8)
             distance = []
+
+        if self.ble.reflectance.available:
+            request_avoidance = await self.ble.reflectance.get_data()
+            self.reflectance_left = request_avoidance.left
+            self.reflectance_right = request_avoidance.right
+            # print(self.reflectance_left, self.reflectance_right)
 
         if self.ble.app_manager.available:
             self.app_manager_state = await self.ble.app_manager.get_data()

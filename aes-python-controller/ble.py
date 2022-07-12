@@ -20,6 +20,7 @@ class SensorID(Enum):
     TASK_ID_ALGO = 2
     TASK_ID_BLE = 3
     TASK_ID_APP_MANAGER = 4
+    TASK_ID_REFLECTANCE = 5
 
 
 NUMBER_OF_HC_SR04_SENSORS = 8
@@ -121,6 +122,30 @@ class AppManager(LockedData):
         state = self.state
         return state
 
+
+class Reflectance(LockedData):
+    class RequestAvoidance:
+        left: bool
+        right: bool
+
+        def __init__(self, data: list):
+            self.left = bool(data[0])
+            self.right = bool(data[1])
+
+    def __init__(self):
+        super().__init__()
+        self.data = []
+
+    async def update_data(self, data: list):
+        # async with self.lock:
+        self.available = True
+        self.data = data
+
+    async def get_data(self):
+        # async with self.lock:
+        request_avoidance = Reflectance.RequestAvoidance(self.data)
+        return request_avoidance
+
 # class AlgoData(LockedData):
 #     def __init__(self, data: list):
 #         self.data = data
@@ -156,6 +181,7 @@ class BLE:
     hc_sr04: HcSr04
     algo: Algo
     app_manager: AppManager
+    reflectance: Reflectance
     logger: logging.Logger
     # TODO
     client: BleakClient
@@ -166,6 +192,7 @@ class BLE:
         self.hc_sr04 = HcSr04()
         self.algo = Algo()
         self.app_manager = AppManager()
+        self.reflectance = Reflectance()
         self.timestamp = 0
 
         self.ui_reset_data_handle = ui_reset_data_handle
@@ -236,6 +263,8 @@ class BLE:
                 await self.algo.update_data(packet.data)
             case SensorID.TASK_ID_APP_MANAGER:
                 await self.app_manager.update_data(packet.data)
+            case SensorID.TASK_ID_REFLECTANCE:
+                await self.reflectance.update_data(packet.data)
             case _:
                 raise KeyError(f'SensorID {packet.id} not implemented')
 
