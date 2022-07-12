@@ -48,7 +48,8 @@ typedef struct algo_ble_data_type_tag
 // extern algo_euler_angles_type algo_euler_angles;
 extern TaskHandle_t algo_position_process_task_handle,
     algo_position_photo_encoder_process_task_handle,
-    algo_position_accel_process_task_handle;
+    algo_position_accel_process_task_handle,
+    algo_reflectance_task_handle;
 extern QueueHandle_t algo_ble_data_queue;
 extern bool algo_running;
 extern uint32_t algo_tick_counter;

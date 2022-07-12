@@ -15,15 +15,10 @@
  * Minimum vehicle speed should be set as lowest value which do not make motors
  * turn (because of motor/tracks/ground friction).
  */
-// #define SPEED_MIN (7.0F)
-// // #define SPEED_MIN (6.5F)
-// #define SPEED_MID (23.0F)
-// #define SPEED_MAX (24.0F)
-
 #define SPEED_MIN (7.0F)
-// #define SPEED_MIN (6.5F)
 #define SPEED_MID (25.0F)
 #define SPEED_MAX (28.0F)
+
 /**
  * @brief Motor correction coefficients
  * L/R - left/right
@@ -31,12 +26,9 @@
  */
 #define MOTOR_CORRECTION_L_F (1.0F)
 #define MOTOR_CORRECTION_R_F (0.885F)
-// #define MOTOR_CORRECTION_R_F (0.815F)
 
 #define MOTOR_CORRECTION_L_B (0.885F)
 #define MOTOR_CORRECTION_R_B (1.0F)
-
-// #define MOTOR_CORRECTION_R (0.95F)
 
 /**
  * @brief Forwards speed constants.
@@ -68,8 +60,6 @@
  * the vehicle will start moving one of the tracks
  * in the reverse direction.
  */
-// #define FST (M_PI / 6.0)
-// #define FST (2.0 * M_PI / 6.0)
 #define FST (M_PI / 4.0)
 
 /**
@@ -77,7 +67,7 @@
  * Creates an interpolation point of angle which
  * will result in maximum speed of both motors in reverse direction.
  */
-#define TST (M_PI)
+#define TST (M_PI / 2.0)
 
 /**
  * @brief Threshold below which integral part
@@ -156,9 +146,7 @@
  */
 #define kP (1.5)
 #define kD (0.2)
-// #define kD (0.5)
-#define kI (0.8)
-// #define kI (0.00)
+#define kI (1.0)
 
 /**
  * @brief Derivative term implemented as IIR high-pass filter.

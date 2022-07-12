@@ -26,7 +26,8 @@
 // QueueHandle_t algo_heading_data_queue;
 TaskHandle_t algo_position_process_task_handle,
     algo_position_photo_encoder_process_task_handle,
-    algo_position_accel_process_task_handle;
+    algo_position_accel_process_task_handle,
+    algo_reflectance_task_handle;
 QueueHandle_t algo_ble_data_queue;
 
 uint32_t algo_tick_counter = 0;
@@ -82,6 +83,7 @@ void algo_init()
     final_heading_init();
     hall_init();
     motor_init();
+    reflectance_init();
 }
 
 void algo_create_tasks()
@@ -112,6 +114,18 @@ void algo_create_tasks()
         5,
         &algo_position_process_task_handle,
         1);
+
+    /**
+     * @brief Reflectance sensors task
+     */
+    task_utils_create_task(
+        reflectance_main,
+        "reflectance_main",
+        4096,
+        NULL,
+        4,
+        &algo_reflectance_task_handle,
+        0);
 }
 
 static void algo_prepare()
@@ -121,6 +135,8 @@ static void algo_prepare()
      */
     reflectance_calibrate();
     reflectance_reset();
+
+    obstacle_avoidance_reset();
 
     /**
      * @brief MPU9255
@@ -221,6 +237,9 @@ void algo_cleanup()
     //    position_accel_process_request_stop);
     task_utils_request_delete_task(&algo_position_photo_encoder_process_task_handle,
                                    position_photo_encoder_process_request_stop);
+
+    task_utils_request_delete_task(&algo_reflectance_task_handle,
+                                   reflectance_request_stop);
     /**
      * @brief Stop receiving data from MPU9255 and reset accel data queue
      * to be empty for next algo start.
@@ -282,7 +301,13 @@ void algo_run()
         return;
     }
 
-    // border_recoil_calculate();
+    border_recoil_calculate();
+    if (border_recoil_state != BORDER_RECOIL_NONE)
+    {
+        ESP_LOGE(TAG, "Border recoil state %d", border_recoil_state);
+        algo_stop_requested = true;
+        return;
+    }
 
     heading_imu_calculate();
     goal_heading_calculate();

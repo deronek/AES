@@ -19,7 +19,8 @@ const uint8_t app_manager_task_data_size[] = {
     sizeof(mpu9255_quaternion_data_type),
     sizeof(algo_ble_data_type),
     0, // BLE task does not send data on its own
-    sizeof(app_manager_ble_data_type)};
+    sizeof(app_manager_ble_data_type),
+    sizeof(reflectance_request_avoidance_type)};
 
 // local variables
 static const char *TAG = "app_manager";
@@ -31,8 +32,7 @@ TaskHandle_t app_manager_algo_task_handle,
     app_manager_state_send_task_handle,
     app_manager_ble_main_task_handle,
     app_manager_ble_heartbeat_task_handle,
-    app_manager_init_task_handle,
-    app_manager_reflectance_task_handle;
+    app_manager_init_task_handle;
 
 // function declarations
 static void app_manager_run();
@@ -104,7 +104,6 @@ void app_manager_init_peripherals()
 
     mpu9255_init();
     hc_sr04_init();
-    reflectance_init();
     ble_init();
 }
 
@@ -192,18 +191,6 @@ void app_manager_create_sensor_tasks()
         4,
         &app_manager_hc_sr04_task_handle,
         1);
-
-    /**
-     * @brief Reflectance sensors task
-     */
-    task_utils_create_task(
-        reflectance_main,
-        "reflectance_main",
-        4096,
-        NULL,
-        4,
-        &app_manager_reflectance_task_handle,
-        0);
 }
 
 void app_manager_create_main_task()

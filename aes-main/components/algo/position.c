@@ -245,6 +245,15 @@ TASK position_photo_encoder_process()
         // float delta_center = (delta_left + delta_right) / 2;
         float delta_center = DISTANCE_STRIPE_M / 2.0;
 
+        // if (event.wheel == PHOTO_ENCODER_L)
+        // {
+        //     ESP_LOGI(TAG, "Photo encoder L");
+        // }
+        // else
+        // {
+        //     ESP_LOGI(TAG, "Photo encoder R");
+        // }
+
         /**
          * @brief Wheel is turning backwards,
          * use negative distance.

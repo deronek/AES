@@ -13,8 +13,8 @@
 #include "driver/gpio.h"
 // #include "hal/gpio_types.h"
 
-#define PHOTO_ENCODER_GPIO_PIN_L (GPIO_NUM_4)
-#define PHOTO_ENCODER_GPIO_PIN_R (GPIO_NUM_2)
+#define PHOTO_ENCODER_GPIO_PIN_L (GPIO_NUM_2)
+#define PHOTO_ENCODER_GPIO_PIN_R (GPIO_NUM_4)
 
 // constants
 
@@ -47,6 +47,10 @@ static void photo_encoder_r_isr(void *arg);
 
 static void photo_encoder_l_isr(void *arg)
 {
+    // if (motor_is_turning())
+    // {
+    //     return;
+    // }
     BaseType_t retval;
     BaseType_t higher_task_woken = pdFALSE;
 
@@ -57,12 +61,12 @@ static void photo_encoder_l_isr(void *arg)
      * @brief Read current heading. This read is atomic.
      * Using uint32_t because declaring float in ISR is not supported.
      * We do not perform any operation on this number, just read.
-     * 
+     *
      * @todo It might be possible to use photo encoder data
      * to also get heading change. Maybe somehow use this
      * to make the position measurement more accurate.
      */
-    volatile uint32_t heading = algo_current_heading;
+    volatile double heading = algo_current_heading;
     event.heading = (float)heading;
 
     volatile int wheel_direction = motor_control_output_data.dir2;
@@ -79,6 +83,10 @@ static void photo_encoder_l_isr(void *arg)
 
 static void photo_encoder_r_isr(void *arg)
 {
+    // if (motor_is_turning())
+    // {
+    //     return;
+    // }
     BaseType_t retval;
     BaseType_t higher_task_woken = pdFALSE;
 
@@ -89,12 +97,12 @@ static void photo_encoder_r_isr(void *arg)
      * @brief Read current heading. This read is atomic.
      * Using uint32_t because declaring float in ISR is not supported.
      * We do not perform any operation on this number, just read.
-     * 
+     *
      * @todo It might be possible to use photo encoder data
      * to also get heading change. Maybe somehow use this
      * to make the position measurement more accurate.
      */
-    volatile uint32_t heading = algo_current_heading;
+    volatile double heading = algo_current_heading;
     event.heading = (float)heading;
 
     volatile int wheel_direction = motor_control_output_data.dir1;

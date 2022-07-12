@@ -2,6 +2,8 @@
 #include "driver/adc.h"
 #include "driver/gpio.h"
 
+#include "algo.h"
+
 #include <math.h>
 
 // constants
@@ -34,10 +36,12 @@
 // global variables
 reflectance_request_avoidance_type reflectance_request_avoidance;
 bool reflectance_measurement_enabled;
+uint32_t ble_tick_send_counter;
 
 // local variables
 static const char *TAG = "reflectance";
 static int sensor_bias[NUMBER_OF_REFLECTANCE_SENSORS];
+bool reflectance_stop_requested;
 
 /**
  * @brief Sensors, in order: front left, front right, back left, back right.
@@ -60,6 +64,7 @@ static adc_channel_t reflectance_adc_channels[NUMBER_OF_REFLECTANCE_SENSORS] = {
 static void reflectance_measure();
 static void reflectance_arbitrate_state();
 static void reflectance_output();
+static void reflectance_ble_send();
 
 // function declarations
 
@@ -82,6 +87,10 @@ TASK reflectance_main()
 {
     for (;;)
     {
+        if (reflectance_stop_requested)
+        {
+            break;
+        }
         reflectance_measure();
         ESP_LOGI(TAG, "%d %d",
                  sensor_voltage[0],
@@ -92,8 +101,27 @@ TASK reflectance_main()
             reflectance_output();
         }
 
+        // if (ble_tick_send_counter >= 10)
+        // {
+        //     reflectance_ble_send();
+        //     ble_tick_send_counter = 0;
+        // }
+        // else
+        // {
+        //     ble_tick_send_counter++;
+        // }
+
         vTaskDelay(TASK_TICK_PERIOD);
     }
+
+    ESP_LOGI(TAG, "Suspending task");
+    xTaskNotifyGive(app_manager_algo_task_handle);
+    vTaskSuspend(NULL);
+}
+
+void reflectance_ble_send()
+{
+    ble_send_from_task(TASK_ID_REFLECTANCE, &reflectance_request_avoidance);
 }
 
 void reflectance_calibrate()
@@ -115,6 +143,7 @@ void reflectance_calibrate()
     for (int i = 0; i < NUMBER_OF_REFLECTANCE_SENSORS; ++i)
     {
         sensor_bias[i] = (int)roundf((float)sensor_bias[i] / CALIBRATION_DATA_POINTS);
+        ESP_LOGI(TAG, "Calibration sensor %d bias: %d", i, sensor_bias[i]);
     }
 }
 
@@ -180,4 +209,11 @@ void reflectance_reset()
     reflectance_request_avoidance.left = false;
     reflectance_request_avoidance.right = false;
     reflectance_measurement_enabled = false;
+    reflectance_stop_requested = false;
+    ble_tick_send_counter = 0;
+}
+
+void reflectance_request_stop()
+{
+    reflectance_stop_requested = true;
 }

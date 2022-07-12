@@ -34,6 +34,7 @@ typedef enum ble_task_id_type_tag
     TASK_ID_ALGO = 2,
     TASK_ID_BLE = 3,
     TASK_ID_APP_MANAGER = 4,
+    TASK_ID_REFLECTANCE = 5
 } ble_task_id_type;
 typedef struct ble_notify_tx_type_tag
 {

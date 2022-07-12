@@ -34,5 +34,6 @@ void reflectance_init();
 TASK reflectance_main();
 void reflectance_calibrate();
 void reflectance_reset();
+void reflectance_request_stop();
 
 #endif

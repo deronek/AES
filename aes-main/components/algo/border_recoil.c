@@ -36,12 +36,6 @@ void border_recoil_calculate()
 {
     border_recoil_run_state();
     border_recoil_output();
-
-    // if (border_recoil_state != BORDER_RECOIL_NONE)
-    // {
-    //     ESP_LOGE(TAG, "Border recoil state %d", border_recoil_state);
-    //     algo_request_stop();
-    // }
 }
 
 void border_recoil_run_state()
@@ -71,13 +65,7 @@ void border_recoil_run_state()
         break;
     case BORDER_RECOIL_DIRECTION_LEFT:
     case BORDER_RECOIL_DIRECTION_RIGHT:
-        border_recoil_coefficient -= BORDER_RECOIL_COEFFICIENT_DEC_PER_TICK;
-        if (border_recoil_coefficient <= 0)
-        {
-            ESP_LOGW(TAG, "Stopping recoiling from the border");
-            border_recoil_clear_reflectance_request();
-            border_recoil_reset();
-        }
+        break;
     }
 }
 
@@ -98,6 +86,14 @@ void border_recoil_output()
         }
     default:
         break;
+    }
+
+    border_recoil_coefficient -= BORDER_RECOIL_COEFFICIENT_DEC_PER_TICK;
+    if (border_recoil_coefficient <= 0)
+    {
+        ESP_LOGW(TAG, "Stopping recoiling from the border");
+        border_recoil_clear_reflectance_request();
+        border_recoil_reset();
     }
 }
 

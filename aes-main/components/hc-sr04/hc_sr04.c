@@ -76,25 +76,15 @@ uint8_t hc_sr04_echo_pins[NUMBER_OF_ECHO_PINS] = {
  * This should be equal to distance of the sensor from the vehicle "bubble".
  * Units are micrometers.
  */
-// uint32_t hc_sr04_distance_offset[NUMBER_OF_HC_SR04_SENSORS] = {
-//     45000,
-//     45000,
-//     10000,
-//     10000,
-//     10000,
-//     10000,
-//     45000,
-//     45000};
-
 uint32_t hc_sr04_distance_offset[NUMBER_OF_HC_SR04_SENSORS] = {
+    45000,
+    45000,
     10000,
     10000,
     10000,
     10000,
-    10000,
-    10000,
-    10000,
-    10000};
+    45000,
+    45000};
 
 /**
  * @brief Mapping of sensor indexes (starting from the left).

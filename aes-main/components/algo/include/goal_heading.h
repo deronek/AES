@@ -26,8 +26,8 @@
 #define X_START (0.455)
 #define Y_START (0.0)
 
-#define X_FINISH (2.595)
-#define Y_FINISH (5.8)
+#define X_FINISH (3.05)
+#define Y_FINISH (5.7)
 
 // enums
 
